@@ -1,0 +1,333 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Arial;}{\f1 Courier New;}}
+\paperw11907\paperh16840\margl1134\margr1134\margt1134\margb1134
+\fs24
+
+{\pard\qc\b\fs34 MODELO CONCEPTUAL DEL FLUJO DE INFORMACI\u211?N EN EL BACKEND\par}
+{\pard\qc\b\fs28 NOA \u8211? Estado operativo actual\par}
+{\pard\qc\fs20 Fecha del documento: 24-03-2026\par}
+\pard\sa220\par
+
+{\pard\b 1. Prop\u243?sito del documento\par}
+Este documento describe, en t\u233?rminos conceptuales, c\u243?mo fluye hoy la informaci\u243?n en el backend de la aplicaci\u243?n NOA. El objetivo no es documentar cada detalle de c\u243?digo, sino explicar qu\u233? datos entran, c\u243?mo se transforman, qu\u233? entidades se actualizan, qu\u233? procesos autom\u225?ticos corren y qu\u233? salidas consumen luego el frontend y los m\u243?dulos anal\u237?ticos.\par
+\par
+El alcance de este documento refleja el backend que efectivamente est\u225? operativo hoy, seg\u250?n las funciones, entidades y automatizaciones activas actualmente desplegadas.\par
+\par
+
+{\pard\b 2. Visi\u243?n general del modelo conceptual\par}
+El backend de NOA opera bajo una l\u243?gica de cinco capas conceptuales:\par
+\par
+{\pard\li360 1. Capa de captura de datos\par}
+{\pard\li720 \u8226? Ventas desde FUDO (sincronizaci\u243?n manual y autom\u225?tica).\par}
+{\pard\li720 \u8226? Ventas, compras y gastos ingresados manualmente o por importaci\u243?n.\par}
+{\pard\li720 \u8226? Encuestas NPS recibidas por webhook.\par}
+{\pard\li720 \u8226? Validaci\u243?n de conexi\u243?n con eBill.\par}
+\par
+{\pard\li360 2. Capa de persistencia operativa\par}
+{\pard\li720 \u8226? Los datos se almacenan en entidades transaccionales como Sale, SupplyCost, OpEx, NPS, Alert, StockMovement, SupplyItem, Recipe, DailyMetrics y EmployeeMetrics.\par}
+\par
+{\pard\li360 3. Capa de transformaci\u243?n y reglas\par}
+{\pard\li720 \u8226? Normalizaci\u243?n de ventas de FUDO al modelo interno de NOA.\par}
+{\pard\li720 \u8226? C\u225?lculo de m\u233?tricas diarias.\par}
+{\pard\li720 \u8226? C\u225?lculo de m\u233?tricas de empleados.\par}
+{\pard\li720 \u8226? Deducci\u243?n y reversi\u243?n de stock.\par}
+{\pard\li720 \u8226? Generaci\u243?n de alertas operativas y financieras.\par}
+\par
+{\pard\li360 4. Capa de automatizaci\u243?n\par}
+{\pard\li720 \u8226? Automations programadas ejecutan sincronizaciones y rec\u225?lculos sin intervenci\u243?n humana.\par}
+{\pard\li720 \u8226? Automations por entidad recalculan m\u233?tricas o ajustan inventario en respuesta a cambios de datos.\par}
+\par
+{\pard\li360 5. Capa de consumo\par}
+{\pard\li720 \u8226? El frontend consulta entidades precalculadas y funciones de agregaci\u243?n para dashboards, RRHH, alertas y copilot.\par}
+\par
+En s\u237?ntesis: NOA captura informaci\u243?n operativa, la convierte a un modelo homog\u233?neo por restaurante, ejecuta transformaciones autom\u225?ticas, deja resultados persistidos y luego expone esos resultados al frontend para an\u225?lisis y gesti\u243?n.\par
+\par
+
+{\pard\b 3. Entidades principales del backend\par}
+A nivel conceptual, las entidades m\u225?s relevantes para el flujo actual son las siguientes:\par
+\par
+{\pard\li360 \u8226? Restaurant\par}
+{\pard\li720 Entidad maestra por local. Contiene identidad del restaurante, zona horaria, configuraci\u243?n operativa, credenciales de integraciones y definiciones como empleados, gastos fijos, categor\u237?as, centros de costo y productos combo.\par}
+\par
+{\pard\li360 \u8226? Sale\par}
+{\pard\li720 Registro unificado de ventas. Recibe ventas importadas desde FUDO y tambi\u233?n ventas manuales/importadas. Es la base de ventas, propinas, tickets, productos vendidos y origen del descuento de stock.\par}
+\par
+{\pard\li360 \u8226? SupplyCost\par}
+{\pard\li720 Registro de compras de insumos. Alimenta food cost, stock y comparativos de precios.\par}
+\par
+{\pard\li360 \u8226? OpEx\par}
+{\pard\li720 Registro de gastos operativos. Alimenta m\u233?tricas diarias, dashboards y alertas.\par}
+\par
+{\pard\li360 \u8226? SupplyItem\par}
+{\pard\li720 Cat\u225?logo de insumos con stock actual, costos promedio y umbrales de alerta.\par}
+\par
+{\pard\li360 \u8226? Recipe\par}
+{\pard\li720 Modelo de receta y sub-recetas. Permite traducir productos vendidos a consumo de insumos.\par}
+\par
+{\pard\li360 \u8226? StockMovement\par}
+{\pard\li720 Bit\u225?cora de trazabilidad del inventario. Registra entradas, salidas y ajustes.\par}
+\par
+{\pard\li360 \u8226? DailyMetrics\par}
+{\pard\li720 Tabla derivada con KPI diarios por restaurante. Resume ventas, costos, opex, tickets, propinas y m\u225?rgenes.\par}
+\par
+{\pard\li360 \u8226? EmployeeMetrics\par}
+{\pard\li720 Tabla derivada con rendimiento por garz\u243?n/empleado y por per\u237?odo. Resume ventas, propinas, transacciones, ticket promedio y ranking.\par}
+\par
+{\pard\li360 \u8226? Alert\par}
+{\pard\li720 Entidad de alertas generadas por reglas autom\u225?ticas.\par}
+\par
+{\pard\li360 \u8226? SyncLog\par}
+{\pard\li720 Bit\u225?cora de ejecuciones de sincronizaci\u243?n FUDO por restaurante.\par}
+\par
+{\pard\li360 \u8226? NPS\par}
+{\pard\li720 Registro de respuestas de satisfacci\u243?n capturadas v\u237?a webhook.\par}
+\par
+
+{\pard\b 4. Flujo conceptual 1: ingreso de ventas desde FUDO\par}
+Este es hoy el flujo autom\u225?tico de captura m\u225?s importante del sistema.\par
+\par
+{\pard\b 4.1 Fuente externa\par}
+FUDO act\u250?a como sistema origen de ventas. El backend se autentica con api_key y api_secret configurados por restaurante.\par
+\par
+{\pard\b 4.2 Extracci\u243?n\par}
+Existen dos modos operativos:\par
+{\pard\li360 \u8226? Sincronizaci\u243?n manual mediante la funci\u243?n syncFudoSales.\par}
+{\pard\li360 \u8226? Sincronizaci\u243?n autom\u225?tica recurrente mediante la funci\u243?n autoSyncFudoSales.\par}
+\par
+En ambos casos el backend consulta ventas cerradas o canceladas en FUDO y obtiene, adem\u225?s, los cat\u225?logos auxiliares necesarios para resolver relaciones: productos, usuarios, mesas, salas, m\u233?todos de pago, categor\u237?as y cocinas.\par
+\par
+{\pard\b 4.3 Normalizaci\u243?n\par}
+Cada venta de FUDO se transforma al modelo interno de NOA con estas decisiones conceptuales:\par
+{\pard\li360 \u8226? Se asigna transaction_id con prefijo FUDO-.\par}
+{\pard\li360 \u8226? Se conserva la fecha/hora de cierre o creaci\u243?n de la venta.\par}
+{\pard\li360 \u8226? Se resuelven productos y subitems para soportar combos y men\u250?s.\par}
+{\pard\li360 \u8226? Se identifica waiter_name desde el usuario asociado por FUDO, si existe.\par}
+{\pard\li360 \u8226? Se detecta payment_method y, cuando aplica, delivery_source.\par}
+{\pard\li360 \u8226? Se consolidan tips y descuentos.\par}
+{\pard\li360 \u8226? Se marca la venta cancelada si FUDO la reporta como CANCELED.\par}
+\par
+{\pard\b 4.4 Persistencia\par}
+Las ventas nuevas se insertan en la entidad Sale. Las ventas ya existentes pueden actualizarse si cambiaron campos relevantes como propinas, total, descuentos, estado o cantidad de productos.\par
+\par
+{\pard\b 4.5 Trazabilidad\par}
+Cada sincronizaci\u243?n autom\u225?tica registra su estado en SyncLog y actualiza last_sync dentro de Restaurant.fudo_config.\par
+\par
+{\pard\b 4.6 Criterio operativo clave\par}
+Las ventas FUDO son tratadas como el origen confiable de ventas del d\u237?a. La funci\u243?n autoSyncFudoSales trae solo ventas nuevas cerradas/canceladas y evita reprocesamientos innecesarios.\par
+\par
+
+{\pard\b 5. Flujo conceptual 2: ventas manuales/importadas y ajuste de inventario\par}
+No todas las ventas entran por FUDO. El backend tambi\u233?n contempla ventas creadas manualmente o importadas por otros medios.\par
+\par
+Cuando se crea una Sale que no viene de FUDO, la automation deductStockOnSale se dispara autom\u225?ticamente. Conceptualmente, el flujo es:\par
+\par
+{\pard\li360 1. Se toma la venta creada.\par}
+{\pard\li360 2. Se descartan ventas canceladas y productos cancelados.\par}
+{\pard\li360 3. Se buscan coincidencias entre cada producto vendido y las recetas o insumos configurados del restaurante.\par}
+{\pard\li360 4. Si el producto tiene receta, se descuentan sus ingredientes.\par}
+{\pard\li360 5. Si el producto corresponde a un insumo directo, se descuenta directamente el stock.\par}
+{\pard\li360 6. Si el producto usa sub-recetas, tambi\u233?n se descuentan sus ingredientes.\par}
+{\pard\li360 7. Se actualiza SupplyItem.current_stock y se registran los movimientos en StockMovement.\par}
+{\pard\li360 8. Si hay productos sin match y el restaurante ya tiene inventario configurado, se crea una alerta.\par}
+\par
+Importante: las ventas FUDO no descuentan stock en esta automation create, porque su stock se descuenta de forma consolidada dentro de autoSyncFudoSales para evitar condiciones de carrera cuando se crean muchas ventas juntas.\par
+\par
+
+{\pard\b 6. Flujo conceptual 3: deducci\u243?n consolidada de stock para ventas FUDO\par}
+Luego de importar ventas nuevas desde FUDO, autoSyncFudoSales ejecuta un segundo subflujo conceptual:\par
+\par
+{\pard\li360 1. Relee el cat\u225?logo de recetas e insumos del restaurante.\par}
+{\pard\li360 2. Calcula, de forma consolidada, el consumo total de insumos derivado de todas las ventas nuevas importadas en esa corrida.\par}
+{\pard\li360 3. Actualiza el stock actual en SupplyItem en un solo pase l\u243?gico.\par}
+{\pard\li360 4. Registra los descuentos en StockMovement con referencia a la sincronizaci\u243?n del d\u237?a.\par}
+\par
+Conceptualmente, esto evita restar inventario producto por producto en paralelo y mantiene m\u225?s consistencia en el stock operativo.\par
+\par
+
+{\pard\b 7. Flujo conceptual 4: reversi\u243?n o ajuste de stock por cambios de datos\par}
+El backend tambi\u233?n contempla el flujo inverso: cuando una venta o compra cambia, el stock debe corregirse.\par
+\par
+{\pard\b 7.1 Venta editada o eliminada\par}
+La automation reverseStockOnSaleChange se dispara sobre Sale en update y delete. El modelo conceptual es:\par
+{\pard\li360 \u8226? Calcula qu\u233? stock descont\u243? la versi\u243?n anterior de la venta.\par}
+{\pard\li360 \u8226? Calcula qu\u233? stock deber\u237?a descontar la nueva versi\u243?n, si aplica.\par}
+{\pard\li360 \u8226? Obtiene la diferencia neta por insumo.\par}
+{\pard\li360 \u8226? Devuelve stock o descuenta stock adicional seg\u250?n corresponda.\par}
+{\pard\li360 \u8226? Registra los ajustes en StockMovement.\par}
+\par
+{\pard\b 7.2 Compra de insumos eliminada\par}
+La automation reverseStockOnPurchaseDelete se dispara sobre SupplyCost en delete. El modelo conceptual es:\par
+{\pard\li360 \u8226? Verifica si esa compra ya hab\u237?a actualizado stock.\par}
+{\pard\li360 \u8226? Identifica los insumos efectivamente ingresados.\par}
+{\pard\li360 \u8226? Resta esas cantidades al stock actual.\par}
+{\pard\li360 \u8226? Registra el ajuste en StockMovement.\par}
+\par
+Resultado conceptual: el inventario no depende solo del alta de datos, sino tambi\u233?n de sus correcciones posteriores.\par
+\par
+
+{\pard\b 8. Flujo conceptual 5: c\u225?lculo de m\u233?tricas diarias\par}
+La entidad DailyMetrics funciona como una capa derivada que resume la operaci\u243?n diaria de cada restaurante.\par
+\par
+Existen dos mecanismos complementarios:\par
+\par
+{\pard\b 8.1 C\u225?lculo programado\par}
+La funci\u243?n calculateDailyMetrics corre por automation programada y calcula m\u233?tricas diarias para restaurantes activos. Conceptualmente:\par
+{\pard\li360 \u8226? Toma ventas, compras de insumos y gastos operativos del d\u237?a.\par}
+{\pard\li360 \u8226? Convierte ventas a neto cuando corresponde.\par}
+{\pard\li360 \u8226? Calcula ventas brutas, ventas netas, tickets, comensales, propinas, descuentos, deliveries, food cost, opex, payroll, utilidad bruta, utilidad neta y porcentajes.\par}
+{\pard\li360 \u8226? Inserta o actualiza DailyMetrics por restaurante y fecha.\par}
+{\pard\li360 \u8226? Si no hubo actividad real, puede omitir o limpiar el registro.\par}
+\par
+{\pard\b 8.2 Rec\u225?lculo incremental por cambios\par}
+La funci\u243?n recalcSingleDayMetrics se dispara autom\u225?ticamente cuando cambia una venta, una compra o un gasto operativo. Conceptualmente:\par
+{\pard\li360 \u8226? Detecta qu\u233? fecha y restaurante fueron afectados.\par}
+{\pard\li360 \u8226? Recalcula solo ese d\u237?a, no todo el historial.\par}
+{\pard\li360 \u8226? Actualiza o corrige DailyMetrics inmediatamente.\par}
+\par
+Resultado conceptual: los dashboards diarios combinan una base programada con una correcci\u243?n incremental ante cambios operativos.\par
+\par
+
+{\pard\b 9. Flujo conceptual 6: c\u225?lculo de m\u233?tricas de empleados\par}
+La entidad EmployeeMetrics es una tabla derivada orientada al rendimiento del equipo.\par
+\par
+La funci\u243?n calculateEmployeeMetrics corre por automation programada. Conceptualmente:\par
+{\pard\li360 \u8226? Recorre restaurantes activos.\par}
+{\pard\li360 \u8226? Calcula tres ventanas: mes actual, mes anterior y acumulado anual.\par}
+{\pard\li360 \u8226? Lee ventas no canceladas del per\u237?odo.\par}
+{\pard\li360 \u8226? Agrupa por waiter_name.\par}
+{\pard\li360 \u8226? Suma ventas, propinas, transacciones y comensales.\par}
+{\pard\li360 \u8226? Calcula ticket promedio, porcentaje de propina y ranking.\par}
+{\pard\li360 \u8226? Inserta o actualiza EmployeeMetrics por restaurante, per\u237?odo y empleado.\par}
+\par
+Observaci\u243?n conceptual importante: este flujo depende de que las ventas tengan waiter_name correctamente poblado. Si el nombre viene vac\u237?o o no asignado, esa venta no se atribuye a un empleado espec\u237?fico, aunque s\u237? exista a nivel de venta total.\par
+\par
+
+{\pard\b 10. Flujo conceptual 7: generaci\u243?n autom\u225?tica de alertas\par}
+La funci\u243?n runScheduledAlertAnalysis act\u250?a como orquestador de salud operativa y financiera.\par
+\par
+Conceptualmente, por cada restaurante activo:\par
+{\pard\li360 \u8226? Lee ventas, compras, gastos, alertas existentes e insumos.\par}
+{\pard\li360 \u8226? Construye comparativos entre per\u237?odo actual y per\u237?odo previo.\par}
+{\pard\li360 \u8226? Eval\u250?a umbrales de food cost, ca\u237?da de ventas, aumento de opex, aumento de n\u243?mina, costo laboral sobre ventas, margen EBITDA y variaciones de precios de insumos/proveedores.\par}
+{\pard\li360 \u8226? Eval\u250?a stock bajo y stock cr\u237?tico por insumo.\par}
+{\pard\li360 \u8226? Limpia alertas resueltas antiguas.\par}
+{\pard\li360 \u8226? Crea nuevas alertas cuando detecta desv\u237?os.\par}
+\par
+Resultado conceptual: el sistema no espera a que el usuario detecte manualmente los problemas, sino que genera se\u241?ales autom\u225?ticas de riesgo y oportunidad.\par
+\par
+
+{\pard\b 11. Flujo conceptual 8: captura de encuestas NPS\par}
+La funci\u243?n npsWebhook permite que una fuente externa env\u237?e respuestas de satisfacci\u243?n al backend.\par
+\par
+Conceptualmente, el flujo es:\par
+{\pard\li360 \u8226? Un formulario externo env\u237?a restaurant_id, score y opcionalmente comentario y nombre del cliente.\par}
+{\pard\li360 \u8226? El backend valida estructura y rango del score.\par}
+{\pard\li360 \u8226? Se crea un registro en la entidad NPS con source = qr.\par}
+\par
+Resultado conceptual: NOA puede consolidar experiencia del cliente como otro flujo de entrada independiente de ventas, compras y gastos.\par
+\par
+
+{\pard\b 12. Flujo conceptual 9: servicio de datos agregados para Copilot\par}
+La funci\u243?n noaCopilotData funciona como servicio de agregaci\u243?n para consultas anal\u237?ticas.\par
+\par
+Conceptualmente:\par
+{\pard\li360 \u8226? Resuelve a qu\u233? restaurantes puede acceder el usuario.\par}
+{\pard\li360 \u8226? Calcula el rango temporal solicitado.\par}
+{\pard\li360 \u8226? Consulta entidades operativas relevantes (Sale, SupplyCost, OpEx, Alert, SupplyItem y Restaurant).\par}
+{\pard\li360 \u8226? Arma respuestas estructuradas por query type: overview, sales, food_cost, payroll, opex, supply_prices, inventory y alerts.\par}
+{\pard\li360 \u8226? Entrega datos ya agregados para consumo del copiloto o capas anal\u237?ticas superiores.\par}
+\par
+Resultado conceptual: NOA no solo guarda datos, sino que expone una vista sem\u225?ntica consolidada para interpretaci\u243?n automatizada.\par
+\par
+
+{\pard\b 13. Flujo conceptual 10: integraci\u243?n con eBill\par}
+Hoy, la integraci\u243?n operativa visible en backend con eBill es la validaci\u243?n de conexi\u243?n.\par
+\par
+La funci\u243?n testEbillConnection:\par
+{\pard\li360 \u8226? Toma el restaurant_id y las credenciales eBill.\par}
+{\pard\li360 \u8226? Lee el RUT del restaurante.\par}
+{\pard\li360 \u8226? Consulta el endpoint de cuenta de eBill para verificar que credenciales y empresa sean v\u225?lidas.\par}
+{\pard\li360 \u8226? Devuelve el resultado y los datos de la empresa.\par}
+\par
+Importante a nivel conceptual: hoy el backend s\u237? valida conexi\u243?n con eBill, pero la obtenci\u243?n autom\u225?tica de facturas desde eBill no est\u225? desplegada en estas funciones como flujo productivo principal. Por lo tanto, en el estado actual, eBill est\u225? presente como validaci\u243?n de integraci\u243?n, no como tuber\u237?a completa de ingesta documental activa dentro de este backend.\par
+\par
+
+{\pard\b 14. Automatizaciones activas que sostienen el modelo\par}
+A la fecha, el modelo conceptual del backend se sostiene con las siguientes automatizaciones activas:\par
+\par
+{\pard\li360 \u8226? Auto-sync FUDO ventas del d\u237?a\par}
+{\pard\li720 Programada cada 10 minutos. Importa ventas nuevas del d\u237?a y descuenta stock consolidado.\par}
+\par
+{\pard\li360 \u8226? C\u225?lculo Diario de M\u233?tricas\par}
+{\pard\li720 Programada diariamente. Genera o actualiza DailyMetrics.\par}
+\par
+{\pard\li360 \u8226? C\u225?lculo de M\u233?tricas de Empleados\par}
+{\pard\li720 Programada peri\u243?dicamente. Genera o actualiza EmployeeMetrics.\par}
+\par
+{\pard\li360 \u8226? An\u225?lisis de Alertas\par}
+{\pard\li720 Programada cada 3 horas. Genera alertas financieras y de inventario.\par}
+\par
+{\pard\li360 \u8226? Recalc DailyMetrics on Sale change\par}
+{\pard\li720 Recalcula el d\u237?a afectado cuando cambia una venta.\par}
+\par
+{\pard\li360 \u8226? Recalc DailyMetrics on SupplyCost change\par}
+{\pard\li720 Recalcula el d\u237?a afectado cuando cambia una compra.\par}
+\par
+{\pard\li360 \u8226? Recalc DailyMetrics on OpEx change\par}
+{\pard\li720 Recalcula el d\u237?a afectado cuando cambia un gasto operativo.\par}
+\par
+{\pard\li360 \u8226? Descontar inventario al crear venta\par}
+{\pard\li720 Ajusta inventario para ventas no FUDO.\par}
+\par
+{\pard\li360 \u8226? Revertir stock al editar/eliminar venta\par}
+{\pard\li720 Corrige stock cuando una venta cambia o se elimina.\par}
+\par
+{\pard\li360 \u8226? Revertir stock al eliminar compra\par}
+{\pard\li720 Corrige stock cuando una compra de insumos eliminada hab\u237?a impactado inventario.\par}
+\par
+Conceptualmente, estas automatizaciones convierten el backend en un sistema reactivo y no solo en un repositorio pasivo de datos.\par
+\par
+
+{\pard\b 15. Reglas transversales del backend\par}
+Existen varias reglas conceptuales que atraviesan casi todos los flujos:\par
+\par
+{\pard\li360 \u8226? Multi-restaurante\par}
+{\pard\li720 Casi todos los datos se segmentan por restaurant_id.\par}
+\par
+{\pard\li360 \u8226? Zona horaria por restaurante\par}
+{\pard\li720 Las fechas de ventas y m\u233?tricas se interpretan con la timezone del restaurante, no solo con UTC crudo.\par}
+\par
+{\pard\li360 \u8226? Uso de tablas derivadas\par}
+{\pard\li720 DailyMetrics y EmployeeMetrics existen para reducir carga al frontend y acelerar reportes.\par}
+\par
+{\pard\li360 \u8226? Consistencia por automatizaci\u243?n\par}
+{\pard\li720 Cuando cambian ventas, compras o gastos, el backend dispara rec\u225?lculos o ajustes para mantener consistencia.\par}
+\par
+{\pard\li360 \u8226? Trazabilidad\par}
+{\pard\li720 Cambios relevantes de inventario quedan registrados en StockMovement. Sincronizaciones quedan registradas en SyncLog.\par}
+\par
+{\pard\li360 \u8226? Seguridad por contexto\par}
+{\pard\li720 Las funciones usan autenticaci\u243?n del usuario cuando aplica y service role cuando la operaci\u243?n es sist\u233?mica o automatizada.\par}
+\par
+
+{\pard\b 16. Lectura ejecutiva del modelo conceptual\par}
+En su estado actual, el backend de NOA puede resumirse as\u237?:\par
+\par
+{\pard\li360 \u8226? Captura ventas desde FUDO de forma autom\u225?tica y manual.\par}
+{\pard\li360 \u8226? Normaliza esas ventas a un modelo interno \u250?nico.\par}
+{\pard\li360 \u8226? Ajusta inventario a partir de ventas y compras.\par}
+{\pard\li360 \u8226? Corrige inventario si los datos cambian.\par}
+{\pard\li360 \u8226? Precalcula indicadores diarios y de empleados.\par}
+{\pard\li360 \u8226? Genera alertas autom\u225?ticas de riesgo o desviaci\u243?n.\par}
+{\pard\li360 \u8226? Recibe NPS por webhook.\par}
+{\pard\li360 \u8226? Entrega agregados anal\u237?ticos al Copilot.\par}
+{\pard\li360 \u8226? Valida la conectividad con eBill, aunque la ingesta documental autom\u225?tica completa no forma parte del backend productivo visible hoy.\par}
+\par
+En otras palabras, el backend actual de NOA no solo registra operaciones: tambi\u233?n las transforma, las consolida y las convierte en inteligencia operativa utilizable por el producto.\par
+\par
+
+{\pard\b 17. Cierre\par}
+Este modelo conceptual representa el flujo de informaci\u243?n backend actualmente operativo. Si en una siguiente fase se activa la recepci\u243?n autom\u225?tica de DTE desde eBill u otros conectores, este documento deber\u225? extenderse para incorporar esa nueva tuber\u237?a como una capa adicional de captura documental y clasificaci\u243?n contable.\par
+\par
+{\pard\fs20 Fin del documento\par}
+}

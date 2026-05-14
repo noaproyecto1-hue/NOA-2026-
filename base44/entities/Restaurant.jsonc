@@ -1,0 +1,541 @@
+{
+  "name": "Restaurant",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nombre del restaurante"
+    },
+    "location": {
+      "type": "string",
+      "description": "Direcci\u00f3n o ubicaci\u00f3n"
+    },
+    "timezone": {
+      "type": "string",
+      "default": "America/Santiago",
+      "description": "Zona horaria IANA del restaurante (ej: America/Santiago, America/Los_Angeles)"
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "USD",
+        "EUR",
+        "MXN",
+        "COP",
+        "ARS",
+        "CLP",
+        "PEN"
+      ],
+      "default": "USD",
+      "description": "Moneda del local"
+    },
+    "tax_id": {
+      "type": "string",
+      "description": "RUT del restaurante (ej: 77.918.459-5)"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Tel\u00e9fono de contacto"
+    },
+    "logo_url": {
+      "type": "string",
+      "description": "URL del logo del restaurante"
+    },
+    "cover_image_url": {
+      "type": "string",
+      "description": "URL de la foto de portada del restaurante"
+    },
+    "fudo_config": {
+      "type": "object",
+      "description": "Configuraci\u00f3n de integraci\u00f3n con FUDO POS",
+      "properties": {
+        "api_key": {
+          "type": "string",
+          "description": "API Key de FUDO"
+        },
+        "api_secret": {
+          "type": "string",
+          "description": "API Secret de FUDO"
+        },
+        "is_connected": {
+          "type": "boolean",
+          "default": false,
+          "description": "Si la conexi\u00f3n est\u00e1 activa"
+        },
+        "last_sync": {
+          "type": "string",
+          "format": "date-time",
+          "description": "\u00daltima sincronizaci\u00f3n"
+        },
+        "today_tx_date": {
+          "type": "string",
+          "description": "Fecha local (YYYY-MM-DD) del set de IDs importados"
+        },
+        "today_tx_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "IDs de transacciones FUDO ya importadas hoy"
+        }
+      }
+    },
+    "ebill_config": {
+      "type": "object",
+      "description": "Configuraci\u00f3n de integraci\u00f3n con eBill (facturaci\u00f3n electr\u00f3nica SII)",
+      "properties": {
+        "api_key": {
+          "type": "string",
+          "description": "X-Api-Key de eBill"
+        },
+        "access_token": {
+          "type": "string",
+          "description": "X-Access-Token de eBill"
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "production",
+            "development"
+          ],
+          "default": "production",
+          "description": "Ambiente: production o development"
+        },
+        "is_connected": {
+          "type": "boolean",
+          "default": false,
+          "description": "Si la conexi\u00f3n est\u00e1 activa"
+        },
+        "company_rut": {
+          "type": "string",
+          "description": "RUT de la empresa en eBill"
+        },
+        "company_name": {
+          "type": "string",
+          "description": "Raz\u00f3n social en eBill"
+        },
+        "last_sync": {
+          "type": "string",
+          "format": "date-time",
+          "description": "\u00daltima sincronizaci\u00f3n de facturas"
+        }
+      }
+    },
+    "combo_products": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lista de nombres de productos combo/contenedor (ej: MENU EJECUTIVO)"
+    },
+    "config": {
+      "type": "object",
+      "description": "Configuraci\u00f3n operativa del restaurante",
+      "properties": {
+        "product_categories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Categor\u00edas de productos"
+        },
+        "product_subcategories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Subcategor\u00edas de productos"
+        },
+        "preparation_zones": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Zonas de preparaci\u00f3n"
+        },
+        "rooms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Salas del restaurante"
+        },
+        "tables_count": {
+          "type": "number",
+          "description": "Cantidad de mesas"
+        },
+        "supply_categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Nombre de la categor\u00eda de insumo"
+              },
+              "cost_type": {
+                "type": "string",
+                "enum": [
+                  "food_cost",
+                  "cost_center"
+                ],
+                "default": "food_cost",
+                "description": "Destino contable"
+              },
+              "cost_center_name": {
+                "type": "string",
+                "description": "Centro de costo destino (solo si cost_type = cost_center)"
+              }
+            }
+          },
+          "description": "Categor\u00edas de suministros con su clasificaci\u00f3n contable"
+        },
+        "recipe_categories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Categor\u00edas de recetas"
+        },
+        "cost_centers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "supply",
+                  "opex"
+                ]
+              },
+              "opex_type": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "categories": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Subcategor\u00edas propias del centro de costo"
+              }
+            }
+          },
+          "description": "Centros de costo con su clasificaci\u00f3n y subcategor\u00edas"
+        },
+        "cost_center_items": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "\u00cdtems de compra"
+        },
+        "payment_methods": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "M\u00e9todos de pago aceptados"
+        },
+        "default_tax_rate": {
+          "type": "number",
+          "default": 19,
+          "description": "Tasa de impuesto por defecto (%)"
+        },
+        "employee_classification_mode": {
+          "type": "string",
+          "enum": [
+            "roles",
+            "areas"
+          ],
+          "default": "roles",
+          "description": "Modo de clasificaci\u00f3n de empleados"
+        },
+        "employee_areas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "\u00c1reas personalizadas para clasificar empleados"
+        },
+        "employees": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string"
+              },
+              "area": {
+                "type": "string",
+                "description": "\u00c1rea del empleado"
+              },
+              "rut": {
+                "type": "string",
+                "description": "RUT del empleado"
+              },
+              "phone": {
+                "type": "string",
+                "description": "Tel\u00e9fono del empleado"
+              },
+              "salary": {
+                "type": "number",
+                "description": "Salario mensual del empleado"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Notas sobre experiencia o desempe\u00f1o"
+              },
+              "is_active": {
+                "type": "boolean",
+                "default": true
+              }
+            }
+          },
+          "description": "Lista de empleados del restaurante"
+        },
+        "fixed_expenses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "type": {
+                "type": "string"
+              },
+              "day_of_month": {
+                "type": "number"
+              },
+              "is_active": {
+                "type": "boolean",
+                "default": true
+              }
+            }
+          },
+          "description": "Gastos fijos mensuales recurrentes"
+        },
+        "ideal_stock_percent": {
+          "type": "number",
+          "default": 10,
+          "description": "Porcentaje ideal de stock sobre ventas mensuales netas"
+        }
+      }
+    },
+    "proforma": {
+      "type": "object",
+      "description": "Presupuesto/Proforma financiera mensual ideal",
+      "properties": {
+        "monthly_income": {
+          "type": "number"
+        },
+        "direct_cost_percent": {
+          "type": "number"
+        },
+        "cost_centers_budget": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "percent": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "item_budgets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "center_name": {
+                "type": "string"
+              },
+              "item_name": {
+                "type": "string"
+              },
+              "percent": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "target_ebitda_percent": {
+          "type": "number"
+        }
+      }
+    },
+    "financial_health": {
+      "type": "object",
+      "description": "Configuraci\u00f3n de salud financiera",
+      "properties": {
+        "food_cost": {
+          "type": "object",
+          "properties": {
+            "excellent": {
+              "type": "number"
+            },
+            "good_min": {
+              "type": "number"
+            },
+            "good_max": {
+              "type": "number"
+            }
+          }
+        },
+        "opex_percentage": {
+          "type": "object",
+          "properties": {
+            "excellent": {
+              "type": "number"
+            },
+            "good_min": {
+              "type": "number"
+            },
+            "good_max": {
+              "type": "number"
+            }
+          }
+        },
+        "labor_cost": {
+          "type": "object",
+          "properties": {
+            "excellent": {
+              "type": "number"
+            },
+            "good_min": {
+              "type": "number"
+            },
+            "good_max": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "alert_thresholds": {
+      "type": "object",
+      "description": "Umbrales sem\u00e1foro para alertas autom\u00e1ticas",
+      "properties": {
+        "cost_spike": {
+          "type": "object",
+          "properties": {
+            "red": {
+              "type": "number"
+            },
+            "yellow": {
+              "type": "number"
+            },
+            "green": {
+              "type": "number"
+            }
+          }
+        },
+        "food_cost_percent": {
+          "type": "object",
+          "properties": {
+            "red": {
+              "type": "number"
+            },
+            "yellow": {
+              "type": "number"
+            },
+            "green": {
+              "type": "number"
+            }
+          }
+        },
+        "supply_price_change": {
+          "type": "object",
+          "properties": {
+            "red": {
+              "type": "number"
+            },
+            "yellow": {
+              "type": "number"
+            },
+            "green": {
+              "type": "number"
+            }
+          }
+        },
+        "labor_cost_spike": {
+          "type": "object",
+          "properties": {
+            "red": {
+              "type": "number"
+            },
+            "yellow": {
+              "type": "number"
+            },
+            "green": {
+              "type": "number"
+            }
+          }
+        },
+        "labor_cost_percent": {
+          "type": "object",
+          "properties": {
+            "red": {
+              "type": "number"
+            },
+            "yellow": {
+              "type": "number"
+            },
+            "green": {
+              "type": "number"
+            }
+          }
+        },
+        "opex_percent": {
+          "type": "object",
+          "properties": {
+            "red": {
+              "type": "number"
+            },
+            "yellow": {
+              "type": "number"
+            },
+            "green": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "location",
+    "currency"
+  ]
+}

@@ -1,0 +1,489 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  ════════════════════════════════════════════════════════════════════
+  NOA · Design System v1.0 · 2026
+  Tokens + componentes según NOA_DesignSystem_v1 2026.pdf
+  ════════════════════════════════════════════════════════════════════
+*/
+
+@layer base {
+  :root {
+    /* ─── Colores primarios ─── */
+    --noa-orange:     #F59E0B;     /* acción / CTA */
+    --noa-orange-dk:  #D97706;     /* hover naranja */
+    --noa-orange-lt:  #FCD34D;     /* naranja claro */
+    --noa-orange-xs:  #FEF3C7;     /* fondos suaves / badges */
+    --noa-navy:       #0C1B33;     /* dominante */
+    --noa-navy-mid:   #142240;     /* navy secundario */
+    --noa-navy-lt:    #1E3A5F;     /* navy terciario */
+    --noa-cream:      #F7F5F0;     /* fondo app */
+    --noa-cream-dk:   #EDE9E0;     /* bordes suaves */
+    --noa-white:      #FFFFFF;
+    --noa-gray:       #A2A2A2;
+    --noa-gray-lt:    #E5E7EB;
+
+    /* ─── Semánticos ─── */
+    --noa-success:    #16A34A;
+    --noa-success-lt: #DCFCE7;
+    --noa-warning:    #D97706;
+    --noa-warning-lt: #FEF3C7;
+    --noa-danger:     #DC2626;
+    --noa-danger-lt:  #FEE2E2;
+    --noa-info:       #0EA5E9;
+    --noa-info-lt:    #E0F2FE;
+
+    /* ─── Tipografía ─── */
+    --noa-font-head: "Bricolage Grotesque", system-ui, sans-serif;
+    --noa-font-body: "DM Sans", system-ui, sans-serif;
+    --noa-font-mono: "DM Mono", "JetBrains Mono", ui-monospace, monospace;
+
+    /* Escala tipográfica */
+    --noa-text-xs:   11px;
+    --noa-text-sm:   13px;
+    --noa-text-base: 15px;
+    --noa-text-md:   17px;
+    --noa-text-lg:   20px;
+    --noa-text-xl:   24px;
+    --noa-text-2xl:  30px;
+    --noa-text-3xl:  36px;
+    --noa-text-4xl:  48px;
+    --noa-text-5xl:  60px;
+
+    --noa-leading-tight:   1.15;
+    --noa-leading-snug:    1.35;
+    --noa-leading-relaxed: 1.65;
+    --noa-leading-loose:   1.8;
+    --noa-tracking-tight:  -0.02em;
+    --noa-tracking-widest: 0.12em;
+
+    /* ─── Espaciado (escala 4px) ─── */
+    --noa-space-1:  4px;
+    --noa-space-2:  8px;
+    --noa-space-3:  12px;
+    --noa-space-4:  16px;
+    --noa-space-5:  20px;
+    --noa-space-6:  24px;
+    --noa-space-8:  32px;
+    --noa-space-10: 40px;
+    --noa-space-12: 48px;
+    --noa-space-16: 64px;
+    --noa-space-20: 80px;
+    --noa-space-24: 96px;
+
+    /* ─── Border radius ─── */
+    --noa-radius-sm:   4px;
+    --noa-radius-md:   8px;
+    --noa-radius-lg:   12px;
+    --noa-radius-xl:   16px;
+    --noa-radius-2xl:  20px;
+    --noa-radius-full: 9999px;
+
+    /* ─── Sombras ─── */
+    --noa-shadow-xs:     0 1px 2px rgba(0,0,0,.05);
+    --noa-shadow-sm:     0 1px 4px rgba(0,0,0,.08);
+    --noa-shadow-md:     0 4px 12px rgba(0,0,0,.10);
+    --noa-shadow-lg:     0 12px 32px rgba(0,0,0,.12);
+    --noa-shadow-xl:     0 24px 48px rgba(0,0,0,.14);
+    --noa-shadow-orange: 0 4px 20px rgba(245,158,11,.35);
+
+    /* ─── Transiciones ─── */
+    --noa-ease:       cubic-bezier(.22,.68,0,1.2);
+    --noa-dur-fast:   120ms;
+    --noa-dur-base:   200ms;
+    --noa-dur-slow:   350ms;
+
+    /* ─── Tokens shadcn (mapeados a NOA) ─── */
+    --radius: var(--noa-radius-md);
+    --background: 0 0% 100%;
+    --foreground: 218 62% 12%;          /* navy */
+    --card: 0 0% 100%;
+    --card-foreground: 218 62% 12%;
+    --popover: 218 62% 12%;             /* navy para tooltips */
+    --popover-foreground: 0 0% 100%;
+    --primary: 218 62% 12%;             /* navy */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 19% 95%;            /* crema */
+    --secondary-foreground: 218 62% 12%;
+    --muted: 40 19% 95%;
+    --muted-foreground: 218 24% 30%;
+    --accent: 38 92% 50%;               /* naranja */
+    --accent-foreground: 218 62% 12%;
+    --destructive: 0 72% 51%;           /* danger #DC2626 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 36 22% 90%;
+    --input: 36 22% 90%;
+    --ring: 38 92% 50%;                 /* foco naranja */
+    --chart-1: 38 92% 50%;
+    --chart-2: 218 62% 12%;
+    --chart-3: 142 71% 36%;
+    --chart-4: 199 89% 48%;
+    --chart-5: 25 88% 50%;
+    --sidebar-background: 218 62% 12%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 38 92% 50%;
+    --sidebar-primary-foreground: 218 62% 12%;
+    --sidebar-accent: 220 53% 16%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 53% 22%;
+    --sidebar-ring: 38 92% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    font-size: var(--noa-text-md);
+  }
+
+  body {
+    background: var(--noa-cream);
+    color: var(--noa-navy);
+    font-family: var(--noa-font-body);
+    font-weight: 400;
+    font-size: var(--noa-text-md);
+    line-height: var(--noa-leading-relaxed);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--noa-font-head);
+    font-weight: 700;
+    color: var(--noa-navy);
+    line-height: var(--noa-leading-tight);
+    letter-spacing: var(--noa-tracking-tight);
+  }
+  h1 { font-size: var(--noa-text-4xl); }
+  h2 { font-size: var(--noa-text-3xl); }
+  h3 { font-size: var(--noa-text-2xl); }
+  h4 { font-size: var(--noa-text-xl); }
+  h5 { font-size: var(--noa-text-lg); }
+  h6 { font-size: var(--noa-text-md); }
+
+  code, pre, kbd, samp {
+    font-family: var(--noa-font-mono);
+    color: var(--noa-orange);
+  }
+
+  /* Labels / eyebrows / kickers */
+  .noa-kicker, .noa-label {
+    font-family: var(--noa-font-body);
+    font-size: var(--noa-text-xs);
+    font-weight: 500;
+    letter-spacing: var(--noa-tracking-widest);
+    text-transform: uppercase;
+    color: var(--noa-orange-dk);
+  }
+}
+
+/*
+  ────────────────────────────────────────────────────────────────────
+  Componentes utilitarios — clases listas para usar siguiendo el DS.
+  ────────────────────────────────────────────────────────────────────
+*/
+@layer components {
+  /* ─── BOTONES ─── */
+  .noa-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--noa-space-2);
+    font-family: var(--noa-font-head);
+    font-weight: 700;
+    line-height: 1;
+    border-radius: var(--noa-radius-md);
+    border: none;
+    cursor: pointer;
+    transition: background var(--noa-dur-fast) var(--noa-ease),
+                color var(--noa-dur-fast) var(--noa-ease),
+                box-shadow var(--noa-dur-fast) var(--noa-ease),
+                transform var(--noa-dur-fast) var(--noa-ease);
+    white-space: nowrap;
+  }
+  .noa-btn:focus-visible {
+    outline: 2px solid var(--noa-orange);
+    outline-offset: 2px;
+  }
+  .noa-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  /* Variantes */
+  .noa-btn-primary    { background: var(--noa-orange);  color: var(--noa-navy); box-shadow: var(--noa-shadow-orange); }
+  .noa-btn-primary:hover:not(:disabled)    { background: var(--noa-orange-dk); }
+  .noa-btn-secondary  { background: var(--noa-navy);    color: var(--noa-white); }
+  .noa-btn-secondary:hover:not(:disabled)  { background: var(--noa-navy-mid); }
+  .noa-btn-ghost      { background: transparent;        color: var(--noa-navy); border: 1px solid var(--noa-cream-dk); }
+  .noa-btn-ghost:hover:not(:disabled)      { background: var(--noa-cream); }
+  .noa-btn-ghost-white{ background: transparent;        color: var(--noa-white); border: 1px solid rgba(255,255,255,.3); }
+  .noa-btn-ghost-white:hover:not(:disabled){ background: rgba(255,255,255,.1); }
+  .noa-btn-danger     { background: var(--noa-danger);  color: var(--noa-white); }
+  .noa-btn-danger:hover:not(:disabled)     { background: #B91C1C; }
+  /* Tamaños */
+  .noa-btn-xs { padding: 6px 10px;  font-size: var(--noa-text-xs); }
+  .noa-btn-sm { padding: 8px 14px;  font-size: var(--noa-text-sm); }
+  .noa-btn-md { padding: 10px 18px; font-size: var(--noa-text-base); }
+  .noa-btn-lg { padding: 14px 22px; font-size: var(--noa-text-md); }
+  .noa-btn-xl { padding: 18px 28px; font-size: var(--noa-text-lg); }
+
+  /* CTA — botón primario con flecha automática del brandbook */
+  .noa-cta {
+    @apply noa-btn noa-btn-primary noa-btn-md;
+  }
+  .noa-cta::before {
+    content: '→';
+    font-weight: 700;
+  }
+
+  /* ─── BADGES ─── */
+  .noa-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--noa-radius-full);
+    font-family: var(--noa-font-body);
+    font-weight: 500;
+    font-size: var(--noa-text-xs);
+    line-height: 1.4;
+    border: 1px solid transparent;
+  }
+  .noa-badge-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .noa-badge-success { background: var(--noa-success-lt); color: #15803D; border-color: #BBF7D0; }
+  .noa-badge-warning { background: var(--noa-warning-lt); color: #92400E; border-color: #FCD34D; }
+  .noa-badge-danger  { background: var(--noa-danger-lt);  color: #991B1B; border-color: #FECACA; }
+  .noa-badge-info    { background: var(--noa-info-lt);    color: #0369A1; border-color: #BAE6FD; }
+  .noa-badge-orange  { background: var(--noa-orange-xs);  color: var(--noa-orange-dk); border-color: #FDE68A; }
+  .noa-badge-navy    { background: var(--noa-navy);       color: var(--noa-white); border-color: var(--noa-navy-mid); }
+  .noa-badge-neutral { background: #F1F1F1; color: #404040; border-color: #E5E5E5; }
+  .noa-badge-sm { padding: 2px 8px;  font-size: 10px; }
+  .noa-badge-lg { padding: 6px 14px; font-size: var(--noa-text-sm); }
+
+  /* ─── CARDS ─── */
+  .noa-card {
+    background: var(--noa-white);
+    border-radius: var(--noa-radius-xl);
+    box-shadow: var(--noa-shadow-md);
+    padding: var(--noa-space-6);
+    border: 1px solid var(--noa-cream-dk);
+  }
+  .noa-card-flat  { box-shadow: none; border: 1px solid var(--noa-cream-dk); }
+  .noa-card-hover { transition: box-shadow var(--noa-dur-base) var(--noa-ease), transform var(--noa-dur-base) var(--noa-ease); }
+  .noa-card-hover:hover { box-shadow: var(--noa-shadow-lg); transform: translateY(-2px); }
+
+  /* Métrica del dashboard */
+  .noa-metric { padding: var(--noa-space-5) var(--noa-space-6); }
+  .noa-metric-label { font-size: var(--noa-text-sm); color: var(--noa-gray); }
+  .noa-metric-value {
+    font-family: var(--noa-font-head);
+    font-weight: 700;
+    font-size: var(--noa-text-3xl);
+    line-height: 1.1;
+    letter-spacing: var(--noa-tracking-tight);
+    margin-top: 4px;
+  }
+  .noa-metric-trend {
+    font-size: var(--noa-text-sm);
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .noa-metric-orange  .noa-metric-value { color: var(--noa-orange); }
+  .noa-metric-success .noa-metric-value { color: var(--noa-success); }
+  .noa-metric-danger  .noa-metric-value { color: var(--noa-danger); }
+  .noa-metric-orange  .noa-metric-trend { color: var(--noa-orange-dk); }
+  .noa-metric-success .noa-metric-trend { color: var(--noa-success); }
+  .noa-metric-danger  .noa-metric-trend { color: var(--noa-danger); }
+
+  /* ─── ALERTAS (con border-left de color) ─── */
+  .noa-alert {
+    display: flex;
+    gap: var(--noa-space-3);
+    padding: var(--noa-space-3) var(--noa-space-4);
+    border-radius: var(--noa-radius-md);
+    border-left: 4px solid;
+    font-size: var(--noa-text-sm);
+  }
+  .noa-alert-title { font-weight: 700; color: var(--noa-navy); margin-bottom: 2px; }
+  .noa-alert-body  { color: var(--noa-navy); opacity: .85; }
+  .noa-alert-warning { background: var(--noa-warning-lt); border-color: var(--noa-warning); }
+  .noa-alert-success { background: var(--noa-success-lt); border-color: var(--noa-success); }
+  .noa-alert-danger  { background: var(--noa-danger-lt);  border-color: var(--noa-danger); }
+  .noa-alert-info    { background: var(--noa-info-lt);    border-color: var(--noa-info); }
+
+  /* ─── NOTIFICACIÓN NOA (firma visual sobre navy) ─── */
+  .noa-notif {
+    background: var(--noa-navy);
+    color: var(--noa-white);
+    border-radius: var(--noa-radius-lg);
+    padding: var(--noa-space-4);
+    border-left: 4px solid var(--noa-orange);
+    box-shadow: var(--noa-shadow-lg);
+  }
+  .noa-notif-success { border-left-color: var(--noa-success); }
+  .noa-notif-danger  { border-left-color: var(--noa-danger); }
+  .noa-notif-info    { border-left-color: var(--noa-info); }
+  .noa-notif-meta    { font-size: var(--noa-text-xs); color: var(--noa-orange); display: flex; align-items: center; gap: 6px; }
+  .noa-notif-meta::before { content: '●'; }
+  .noa-notif-title   { font-weight: 700; font-size: var(--noa-text-base); margin-top: 4px; }
+  .noa-notif-body    { font-size: var(--noa-text-sm); margin-top: 4px; color: rgba(255,255,255,.85); }
+
+  /* ─── INPUTS / FORMS ─── */
+  .noa-input,
+  .noa-select,
+  .noa-textarea {
+    width: 100%;
+    background: var(--noa-white);
+    border: 1px solid var(--noa-cream-dk);
+    border-radius: var(--noa-radius-md);
+    padding: 10px 14px;
+    font-family: var(--noa-font-body);
+    font-size: var(--noa-text-base);
+    color: var(--noa-navy);
+    transition: border-color var(--noa-dur-fast) var(--noa-ease),
+                box-shadow var(--noa-dur-fast) var(--noa-ease);
+  }
+  .noa-input:focus,
+  .noa-select:focus,
+  .noa-textarea:focus {
+    outline: none;
+    border-color: var(--noa-orange);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.2);
+  }
+  .noa-input.is-success { border-color: var(--noa-success); }
+  .noa-input.is-success:focus { box-shadow: 0 0 0 3px rgba(22,163,74,.2); }
+  .noa-input.is-error   { border-color: var(--noa-danger); }
+  .noa-input.is-error:focus   { box-shadow: 0 0 0 3px rgba(220,38,38,.2); }
+  .noa-field-label { font-size: var(--noa-text-sm); font-weight: 600; color: var(--noa-navy); margin-bottom: 6px; display: block; }
+  .noa-field-hint  { font-size: var(--noa-text-xs); color: var(--noa-gray); margin-top: 4px; }
+  .noa-field-error { font-size: var(--noa-text-xs); color: var(--noa-danger); margin-top: 4px; }
+  .noa-field-success { font-size: var(--noa-text-xs); color: var(--noa-success); margin-top: 4px; }
+
+  /* ─── TABS ─── */
+  .noa-tabs { display: flex; gap: var(--noa-space-2); border-bottom: 1px solid var(--noa-cream-dk); }
+  .noa-tab {
+    padding: 10px 14px;
+    font-size: var(--noa-text-sm);
+    font-weight: 600;
+    color: var(--noa-gray);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color var(--noa-dur-fast) var(--noa-ease);
+  }
+  .noa-tab:hover { color: var(--noa-navy); }
+  .noa-tab.is-active { color: var(--noa-navy); border-bottom-color: var(--noa-orange); }
+
+  /* ─── BREADCRUMB ─── */
+  .noa-breadcrumb { font-size: var(--noa-text-sm); color: var(--noa-gray); display: flex; align-items: center; gap: 6px; }
+  .noa-breadcrumb a { color: var(--noa-gray); text-decoration: none; }
+  .noa-breadcrumb a:hover { color: var(--noa-navy); }
+  .noa-breadcrumb-current { color: var(--noa-navy); font-weight: 600; }
+
+  /* ─── TABLAS ─── */
+  .noa-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--noa-white);
+    border-radius: var(--noa-radius-lg);
+    overflow: hidden;
+    box-shadow: var(--noa-shadow-sm);
+  }
+  .noa-table thead th {
+    background: var(--noa-navy);
+    color: var(--noa-white);
+    font-family: var(--noa-font-body);
+    font-size: var(--noa-text-xs);
+    font-weight: 600;
+    letter-spacing: var(--noa-tracking-widest);
+    text-transform: uppercase;
+    text-align: left;
+    padding: 14px 18px;
+  }
+  .noa-table tbody td {
+    padding: 14px 18px;
+    font-size: var(--noa-text-sm);
+    color: var(--noa-navy);
+    border-top: 1px solid var(--noa-cream-dk);
+  }
+  .noa-table tbody tr:hover td { background: var(--noa-orange-xs); }
+
+  /* ─── PROGRESS BARS ─── */
+  .noa-progress {
+    height: 8px;
+    background: var(--noa-cream-dk);
+    border-radius: var(--noa-radius-full);
+    overflow: hidden;
+  }
+  .noa-progress-bar { height: 100%; border-radius: inherit; transition: width var(--noa-dur-slow) var(--noa-ease); }
+  .noa-progress-success { background: var(--noa-success); }
+  .noa-progress-warning { background: var(--noa-warning); }
+  .noa-progress-danger  { background: var(--noa-danger); }
+  .noa-progress-orange  { background: var(--noa-orange); }
+
+  /* ─── AVATARS ─── */
+  .noa-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--noa-radius-full);
+    font-family: var(--noa-font-head);
+    font-weight: 700;
+    font-size: var(--noa-text-sm);
+    color: var(--noa-white);
+    background: var(--noa-navy);
+  }
+  .noa-avatar-sm { width: 28px; height: 28px; font-size: 11px; }
+  .noa-avatar-lg { width: 56px; height: 56px; font-size: var(--noa-text-md); }
+  .noa-avatar-orange  { background: var(--noa-orange); color: var(--noa-navy); }
+  .noa-avatar-success { background: var(--noa-success); }
+  .noa-avatar-info    { background: var(--noa-info); }
+
+  /* ─── SKELETON LOADER ─── */
+  .noa-skeleton {
+    background: linear-gradient(90deg, var(--noa-cream-dk) 0%, #F5F1E8 50%, var(--noa-cream-dk) 100%);
+    background-size: 200% 100%;
+    animation: noa-skel 1.6s infinite;
+    border-radius: var(--noa-radius-md);
+  }
+  @keyframes noa-skel {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ─── DIVIDERS ─── */
+  .noa-divider { border: 0; height: 1px; background: var(--noa-cream-dk); margin: var(--noa-space-6) 0; }
+  .noa-divider-orange { background: var(--noa-orange); height: 2px; }
+
+  /* ─── TOOLTIP ─── */
+  .noa-tooltip {
+    background: var(--noa-navy);
+    color: var(--noa-white);
+    padding: 8px 14px;
+    border-radius: var(--noa-radius-lg);
+    font-size: var(--noa-text-xs);
+    font-weight: 600;
+    box-shadow: var(--noa-shadow-lg);
+  }
+
+  /* ─── STAT PILL — dato grande con texto al lado ─── */
+  .noa-stat-pill { display: inline-flex; align-items: baseline; gap: 6px; }
+  .noa-stat-pill-value {
+    font-family: var(--noa-font-head);
+    font-weight: 700;
+    font-size: var(--noa-text-2xl);
+    color: var(--noa-orange);
+    line-height: 1;
+  }
+  .noa-stat-pill-label { font-size: var(--noa-text-sm); color: var(--noa-gray); }
+
+  /* ─── DISPLAY HEADINGS (overrides para títulos hero) ─── */
+  .noa-display-1 { font-family: var(--noa-font-head); font-weight: 800; font-size: var(--noa-text-5xl); letter-spacing: var(--noa-tracking-tight); line-height: var(--noa-leading-tight); }
+  .noa-display-2 { font-family: var(--noa-font-head); font-weight: 800; font-size: var(--noa-text-4xl); letter-spacing: var(--noa-tracking-tight); line-height: var(--noa-leading-tight); }
+}

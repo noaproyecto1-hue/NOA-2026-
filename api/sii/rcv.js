@@ -1,5 +1,6 @@
 import { sendJson, readJson, siiOverridesToOpts } from '../_utils.js';
 import { createRcvClient } from '../../server/simpleapi/rcv.js';
+import { kvGet } from '../_kv.js';
 
 export default async function handler(req, res) {
   try {
@@ -13,7 +14,11 @@ export default async function handler(req, res) {
     if (!Number.isInteger(year) || !Number.isInteger(month)) {
       return sendJson(res, 400, { error: 'year y month requeridos' });
     }
-    const overrides = req.method === 'POST' ? await readJson(req) : {};
+    let overrides = req.method === 'POST' ? await readJson(req) : {};
+    if (Object.keys(overrides).length === 0) {
+      const shared = await kvGet('noa:shared-config');
+      if (shared?.sii) overrides = shared.sii;
+    }
     const client = createRcvClient(siiOverridesToOpts(overrides));
     const data = type === 'ventas'
       ? await client.getVentas({ year, month })

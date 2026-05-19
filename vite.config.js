@@ -125,6 +125,20 @@ function integrationsProxyPlugin() {
     name: 'integrations-proxy',
     apply: 'serve',
     configureServer(server) {
+      // /__config — solo en dev local responde "no disponible" (KV es solo en deploy).
+      // La UI ya degrada graciosamente cuando available=false.
+      server.middlewares.use('/__config', async (req, res) => {
+        if (req.method === 'GET') {
+          return sendJson(res, 200, {
+            ok: true,
+            available: false,
+            config: {},
+            message: 'En modo dev local no hay sincronización compartida — solo localStorage.',
+          })
+        }
+        return sendJson(res, 503, { ok: false, available: false, message: 'KV no disponible en dev local' })
+      })
+
       server.middlewares.use('/__llm/invoke', async (req, res) => {
         if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
         try {

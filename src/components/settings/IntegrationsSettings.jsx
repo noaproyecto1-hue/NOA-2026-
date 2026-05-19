@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -476,16 +476,73 @@ function FudoTestButton({ cfg }) {
 export default function IntegrationsSettings() {
   const [cfg, setCfg] = useState(loadIntegrations());
   const [savedAt, setSavedAt] = useState(null);
+  const [serverSync, setServerSync] = useState({ available: false, lastPushedAt: null, lastError: null });
+  const pushTimerRef = useRef(null);
 
+  // Al montar: 1) leer localStorage; 2) leer config compartida del server; merge.
   useEffect(() => {
-    setCfg(loadIntegrations());
+    let cancelled = false;
+    async function init() {
+      const local = loadIntegrations();
+      if (cancelled) return;
+      setCfg(local);
+
+      try {
+        const res = await fetch('/__config');
+        const data = await res.json();
+        if (cancelled) return;
+        if (!data.available) {
+          setServerSync({ available: false, lastPushedAt: null, lastError: null });
+          return;
+        }
+        setServerSync({ available: true, lastPushedAt: null, lastError: null });
+        // Server gana SOLO para campos que el server tiene definidos.
+        // Esto permite a un usuario nuevo entrar y heredar todo sin configurar nada.
+        const merged = { ...local };
+        for (const section of ['sii', 'fudo', 'ai', 'gmail', 'agent']) {
+          if (data.config?.[section]) {
+            merged[section] = { ...(local[section] || {}), ...data.config[section] };
+          }
+        }
+        // Persiste el merge en localStorage para que se vea reflejado.
+        for (const section of Object.keys(merged)) {
+          updateIntegration(section, merged[section]);
+        }
+        setCfg(merged);
+      } catch (err) {
+        // El endpoint puede no existir en local dev sin esos cambios; lo ignoramos.
+        if (!cancelled) setServerSync({ available: false, lastPushedAt: null, lastError: err.message });
+      }
+    }
+    init();
+    return () => { cancelled = true; };
   }, []);
+
+  // Push debounced a /api/config (solo si KV está disponible).
+  function schedulePushToServer(fullCfg) {
+    if (!serverSync.available) return;
+    clearTimeout(pushTimerRef.current);
+    pushTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch('/__config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fullCfg),
+        });
+        const data = await res.json();
+        setServerSync((s) => ({ ...s, lastPushedAt: Date.now(), lastError: data.ok ? null : data.message }));
+      } catch (err) {
+        setServerSync((s) => ({ ...s, lastError: err.message }));
+      }
+    }, 1000);
+  }
 
   function patch(section, patch) {
     const next = updateIntegration(section, patch);
     setCfg(next);
     setSavedAt(Date.now());
     setTimeout(() => setSavedAt(null), 2000);
+    schedulePushToServer(next);
   }
 
   const aiOk = isConfigured('ai');
@@ -500,15 +557,36 @@ export default function IntegrationsSettings() {
         </div>
       )}
 
-      <Alert>
-        <AlertCircle className="w-4 h-4" />
-        <AlertTitle>Modo local</AlertTitle>
-        <AlertDescription className="text-sm">
-          Las credenciales se guardan en <code>localStorage</code> de este navegador.
-          No se sincronizan entre dispositivos. Para producción, configurarás estas
-          mismas variables en el panel de Vercel/Hosting (env vars).
-        </AlertDescription>
-      </Alert>
+      {serverSync.available ? (
+        <Alert className="border-emerald-200 bg-emerald-50">
+          <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+          <AlertTitle className="text-emerald-900">Sincronización compartida activa</AlertTitle>
+          <AlertDescription className="text-sm text-emerald-800">
+            Las credenciales se guardan en el servidor (Vercel KV) y se cargan automáticamente
+            para cualquier usuario que abra sesión. Cambios locales se sincronizan al server
+            tras 1 segundo de inactividad.
+            {serverSync.lastPushedAt && (
+              <span className="text-xs block mt-1 text-emerald-700">
+                Última sincronización: {new Date(serverSync.lastPushedAt).toLocaleTimeString('es-CL')}
+              </span>
+            )}
+            {serverSync.lastError && (
+              <span className="text-xs block mt-1 text-red-700">⚠ {serverSync.lastError}</span>
+            )}
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <Alert>
+          <AlertCircle className="w-4 h-4" />
+          <AlertTitle>Solo guardado local</AlertTitle>
+          <AlertDescription className="text-sm">
+            Las credenciales se guardan en <code>localStorage</code> de este navegador y NO se
+            comparten con otros usuarios. Para sincronizar entre todos los usuarios, activa{' '}
+            <strong>Vercel KV</strong>: Vercel Dashboard → Storage → Create Database → KV →
+            Connect to project. Después de un redeploy, esta sección se pondrá en verde.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* IA Provider */}
       <Card>

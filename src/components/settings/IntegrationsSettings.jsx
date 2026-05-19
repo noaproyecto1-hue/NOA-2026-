@@ -79,7 +79,7 @@ function SiiSection({ siiCfg, onPatch }) {
 
   function buildOverridePayload() {
     const out = {};
-    for (const k of ['rutEmpresa', 'rutCertificado', 'password', 'apiKey', 'ambiente']) {
+    for (const k of ['rutEmpresa', 'rutCertificado', 'password', 'apiKey', 'ambiente', 'certBase64']) {
       if (siiCfg?.[k]) out[k] = siiCfg[k];
     }
     return out;
@@ -110,19 +110,26 @@ function SiiSection({ siiCfg, onPatch }) {
     setUploadResult(null);
     try {
       const buf = await file.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-      const res = await fetch('/__sii/upload-cert', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ base64, filename: file.name }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setUploadResult({ ok: false, message: data.error || `HTTP ${res.status}` });
-      } else {
-        setUploadResult({ ok: true, message: data.message });
-        await refreshStatus();
+      const bytes = new Uint8Array(buf);
+      // btoa(String.fromCharCode(...bytes)) puede romper para archivos grandes
+      // (límite de argumentos). Iteramos en chunks para evitar el problema.
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
       }
+      const base64 = btoa(binary);
+      if (base64.length < 100) throw new Error('Archivo demasiado pequeño, ¿es un .pfx válido?');
+
+      // Guardamos el cert en localStorage como override (igual que los otros
+      // campos). En cada request al SII viaja como parte del body.
+      // Esto funciona tanto en local como en Vercel sin tocar el filesystem.
+      onPatch({ certBase64: base64, certFileName: file.name, certSize: buf.byteLength });
+
+      setUploadResult({
+        ok: true,
+        message: `Certificado cargado en este navegador (${(buf.byteLength / 1024).toFixed(1)} KB). Quedó como override local — se enviará al servidor en cada request.`,
+      });
     } catch (err) {
       setUploadResult({ ok: false, message: err.message });
     } finally {
@@ -130,7 +137,11 @@ function SiiSection({ siiCfg, onPatch }) {
     }
   }
 
-  const isConfigured = status?.certExists && status?.passwordSet && status?.rutEmpresa && status?.rutCertificado;
+  const certAvailable = Boolean(siiCfg?.certBase64) || status?.certExists;
+  const passwordAvailable = Boolean(siiCfg?.password) || status?.passwordSet;
+  const rutEmpresaAvailable = Boolean(siiCfg?.rutEmpresa) || status?.rutEmpresa;
+  const rutCertAvailable = Boolean(siiCfg?.rutCertificado) || status?.rutCertificado;
+  const isConfigured = certAvailable && passwordAvailable && rutEmpresaAvailable && rutCertAvailable;
   const fmtBytes = (n) => `${(n / 1024).toFixed(1)} KB`;
   const fmtDate = (iso) => iso ? new Date(iso).toLocaleString('es-CL') : '—';
 
@@ -225,8 +236,15 @@ function SiiSection({ siiCfg, onPatch }) {
               <SiiRow label="Contraseña del .pfx" value={(siiCfg?.password || status.passwordSet) ? '•••••••• (definida)' : 'No definida'} ok={Boolean(siiCfg?.password) || status.passwordSet} overridden={Boolean(siiCfg?.password)} />
               <SiiRow
                 label="Certificado .pfx"
-                value={status.certExists ? `${status.certPath} (${fmtBytes(status.certSize)}, ${fmtDate(status.certMtime)})` : `No encontrado en ${status.certPath}`}
-                ok={status.certExists}
+                value={
+                  siiCfg?.certBase64
+                    ? `${siiCfg.certFileName || 'cert local'} (${fmtBytes(siiCfg.certSize || 0)}, override en este navegador)`
+                    : status.certExists
+                      ? `${status.certPath}${status.certSize ? ` (${fmtBytes(status.certSize)}${status.certMtime ? `, ${fmtDate(status.certMtime)}` : ''})` : ''}`
+                      : `No encontrado en ${status.certPath || 'el servidor'}`
+                }
+                ok={Boolean(siiCfg?.certBase64) || status.certExists}
+                overridden={Boolean(siiCfg?.certBase64)}
               />
               <SiiRow label="API Key SimpleAPI" value={siiCfg?.apiKey ? `${siiCfg.apiKey.slice(0, 4)}••••${siiCfg.apiKey.slice(-4)}` : (status.apiKey || '—')} ok={Boolean(status.apiKey || siiCfg?.apiKey)} overridden={Boolean(siiCfg?.apiKey)} />
               <SiiRow label="Ambiente" value={(siiCfg?.ambiente || status.ambiente) == 2 ? 'Certificación (2)' : 'Producción (1)'} ok={Boolean(siiCfg?.ambiente || status.ambiente)} overridden={Boolean(siiCfg?.ambiente)} />
@@ -312,8 +330,9 @@ function SiiSection({ siiCfg, onPatch }) {
             <div className="space-y-2 pt-2 border-t border-emerald-200">
               <Label className="text-sm font-medium">Reemplazar certificado .pfx</Label>
               <p className="text-xs text-gray-600">
-                Sube el archivo <code>.pfx</code> de la nueva persona. Se guardará en{' '}
-                <code>{status?.certPath || './certs/sii-cert.pfx'}</code> sobreescribiendo el actual.
+                Sube el archivo <code>.pfx</code> de la nueva persona. Se guarda en este navegador
+                (<code>localStorage</code>) y viaja con cada consulta al SII como override del cert
+                que esté en el servidor.
               </p>
               <div className="flex items-center gap-2">
                 <input
@@ -341,8 +360,8 @@ function SiiSection({ siiCfg, onPatch }) {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  if (confirm('¿Borrar todos los overrides locales? Volverá a usar lo del .env.')) {
-                    onPatch({ rutEmpresa: '', rutCertificado: '', password: '', apiKey: '', ambiente: '' });
+                  if (confirm('¿Borrar todos los overrides locales? Volverá a usar lo del .env / Vercel env vars.')) {
+                    onPatch({ rutEmpresa: '', rutCertificado: '', password: '', apiKey: '', ambiente: '', certBase64: '', certFileName: '', certSize: 0 });
                   }
                 }}
               >

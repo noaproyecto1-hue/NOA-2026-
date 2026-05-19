@@ -189,6 +189,7 @@ function siiOverridesToOpts(o = {}) {
   if (o.apiKey) opts.apiKey = o.apiKey
   if (o.ambiente) opts.ambiente = Number(o.ambiente)
   if (o.certPath) opts.certPath = o.certPath
+  if (o.certBase64) opts.certBase64 = o.certBase64
   return opts
 }
 

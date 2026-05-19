@@ -42,7 +42,7 @@ function loadSiiOverrides() {
     const sii = stored.sii || {};
     // Solo enviamos campos no-vacíos: si todo viene vacío, el server usa el .env.
     const out = {};
-    for (const k of ['rutEmpresa', 'rutCertificado', 'password', 'apiKey', 'ambiente']) {
+    for (const k of ['rutEmpresa', 'rutCertificado', 'password', 'apiKey', 'ambiente', 'certBase64']) {
       if (sii[k]) out[k] = sii[k];
     }
     return out;

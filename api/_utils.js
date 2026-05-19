@@ -33,6 +33,8 @@ export async function readJson(req) {
 }
 
 // Convierte overrides camelCase (UI) en las opts que espera createRcvClient.
+// Incluye certBase64 para que el .pfx pueda viajar como override desde el UI
+// (necesario en Vercel donde no se puede escribir al filesystem).
 export function siiOverridesToOpts(o = {}) {
   const opts = {};
   if (o.rutEmpresa) opts.rutEmpresa = o.rutEmpresa;
@@ -41,5 +43,6 @@ export function siiOverridesToOpts(o = {}) {
   if (o.apiKey) opts.apiKey = o.apiKey;
   if (o.ambiente) opts.ambiente = Number(o.ambiente);
   if (o.certPath) opts.certPath = o.certPath;
+  if (o.certBase64) opts.certBase64 = o.certBase64;
   return opts;
 }

@@ -69,6 +69,11 @@ const DEFAULTS = {
     password: '',
     apiKey: '',
     ambiente: '',
+    // Cert subido desde la UI (base64). Cuando está presente, viaja al server
+    // en cada request como certBase64 — permite cambiar el .pfx sin tocar env vars.
+    certBase64: '',
+    certFileName: '',
+    certSize: 0,
   },
   gmail: {
     user: '',

@@ -54,14 +54,31 @@ export function createRcvClient(options = {}) {
   const rutEmpresa = options.rutEmpresa ?? requireEnv('SII_RUT_EMPRESA');
   const password = options.password ?? requireEnv('SII_PASSWORD');
   const rutCertificado = options.rutCertificado ?? requireEnv('SII_RUT_CERTIFICADO');
-  const certPath = options.certPath ?? requireEnv('SII_CERT_PATH');
+  // El .pfx puede venir por uno de estos canales (en orden de prioridad):
+  //   1) options.certBase64  — desde el frontend (UI override), base64 string
+  //   2) process.env.SII_CERT_BASE64 — en Vercel/serverless (filesystem read-only)
+  //   3) options.certPath / SII_CERT_PATH — en local, lee del filesystem
+  const certBase64 = options.certBase64 ?? process.env.SII_CERT_BASE64 ?? null;
+  const certPath = options.certPath ?? readEnv('SII_CERT_PATH', '');
+  if (!certBase64 && !certPath) {
+    throw new Error('Falta certificado: define SII_CERT_BASE64 (recomendado en Vercel) o SII_CERT_PATH (local).');
+  }
   const ambiente = Number(options.ambiente ?? readEnv('SII_AMBIENTE', '1'));
+
+  async function loadCertBuffer() {
+    if (certBase64) {
+      // base64 puede venir con prefijo data:... — limpiarlo si lo trae.
+      const clean = String(certBase64).replace(/^data:[^;]+;base64,/, '').replace(/\s+/g, '');
+      return Buffer.from(clean, 'base64');
+    }
+    return await readFile(certPath);
+  }
 
   async function request(kind, year, month) {
     validatePeriod(year, month);
     const url = `${baseUrl}/api/RCV/${kind}/${pad2(month)}/${year}`;
 
-    const certBuffer = await readFile(certPath);
+    const certBuffer = await loadCertBuffer();
     const certBlob = new Blob([certBuffer], { type: 'application/x-pkcs12' });
 
     const input = JSON.stringify({
@@ -73,7 +90,7 @@ export function createRcvClient(options = {}) {
 
     const form = new FormData();
     form.append('input', input);
-    form.append('files', certBlob, basename(certPath));
+    form.append('files', certBlob, certPath ? basename(certPath) : 'sii-cert.pfx');
 
     const response = await fetch(url, {
       method: 'POST',

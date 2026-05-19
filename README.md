@@ -88,13 +88,49 @@ base44/               Código original Base44 (functions, entities, agents) — 
 certs/                Tu .pfx local (gitignored)
 ```
 
-## Deploy a producción
+## Deploy a producción (Vercel)
 
-Vite está configurado para `npm run build` → `dist/`. En Vercel:
+El repo ya incluye **serverless functions** en `api/` que replican los endpoints server-side. En `npm run dev` se usan los middlewares de Vite; en Vercel se usan los archivos de `api/`. El frontend hace `fetch('/__fudo/...')` en ambos casos y un `vercel.json` con `rewrites` mapea esas rutas a `/api/__fudo/...`.
 
-1. Importa el repo.
-2. Variables de entorno: copia las del `.env` al panel Vercel (Settings → Environment Variables).
-3. Para los proxies server-side (`/__sii/*`, `/__fudo/*`, `/__llm/*`, `/__email/*`) hay que migrar el código de `vite.config.js > integrationsProxyPlugin` a serverless functions en `api/`.
+### Pasos para deployar
+
+1. **Importa el repo en Vercel** (Framework: Vite, detectado automático).
+2. **Configura las Environment Variables** en *Project Settings → Environment Variables*. Marca cada una para los 3 entornos (Production, Preview, Development) según necesites:
+
+   | Variable | Ejemplo | Notas |
+   |---|---|---|
+   | `SIMPLEAPI_API_KEY` | `XXXX-XXXX-XXXX-XXXX-XXXX` | tu API key de SimpleAPI |
+   | `SII_RUT_EMPRESA` | `77123456-7` | RUT de la empresa a consultar |
+   | `SII_RUT_CERTIFICADO` | `12345678-9` | RUT del titular del .pfx |
+   | `SII_PASSWORD` | `tu-clave-pfx` | contraseña del .pfx |
+   | `SII_AMBIENTE` | `1` | 1=producción, 2=certificación |
+   | `SII_CERT_BASE64` | `MIIKgQIBAzCC...` | **el .pfx codificado en base64** (ver abajo) |
+   | `FUDO_API_KEY` | string corto base64 | el "Client Secret" del panel Fudo |
+   | `FUDO_API_SECRET` | string largo alfanumérico | el "Client ID" del panel Fudo |
+
+3. **Redeploy** después de guardar las variables (Vercel solo las aplica en builds nuevos).
+
+### Cómo codificar el `.pfx` en base64
+
+El filesystem de Vercel es read-only, así que el `.pfx` debe viajar como env var. En PowerShell:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("certs\sii-cert.pfx")) | clip
+# Pega el contenido del clipboard en la variable SII_CERT_BASE64 de Vercel
+```
+
+En Linux/macOS:
+
+```bash
+base64 -w0 certs/sii-cert.pfx | xclip -selection clipboard
+```
+
+> Después del redeploy, en *Settings → Integraciones → SII* la app reportará `Cert source: base64-env` y podrás "Probar conexión SII".
+
+### Limitaciones en Vercel
+
+- **No se puede subir el `.pfx` desde la UI** (filesystem read-only). El endpoint `/__sii/upload-cert` devuelve un mensaje explicando cómo configurar `SII_CERT_BASE64`.
+- **localStorage** sigue siendo la BD del frontend — cada navegador tiene sus propios datos. Para multi-usuario o multi-dispositivo necesitas migrar a una BD real (ver sección siguiente).
 
 ## License
 

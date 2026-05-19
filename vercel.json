@@ -4,15 +4,15 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/__sii/:path*", "destination": "/api/__sii/:path*" },
-    { "source": "/__fudo/:path*", "destination": "/api/__fudo/:path*" },
-    { "source": "/__llm/:path*", "destination": "/api/__llm/:path*" },
-    { "source": "/__email/:path*", "destination": "/api/__email/:path*" }
+    { "source": "/__sii/:path*", "destination": "/api/sii/:path*" },
+    { "source": "/__fudo/:path*", "destination": "/api/fudo/:path*" },
+    { "source": "/__llm/:path*", "destination": "/api/llm/:path*" },
+    { "source": "/__email/:path*", "destination": "/api/email/:path*" }
   ],
   "functions": {
-    "api/__sii/rcv.js": { "maxDuration": 60 },
-    "api/__sii/test.js": { "maxDuration": 60 },
-    "api/__fudo/sales.js": { "maxDuration": 60 },
-    "api/__fudo/products.js": { "maxDuration": 30 }
+    "api/sii/rcv.js": { "maxDuration": 60 },
+    "api/sii/test.js": { "maxDuration": 60 },
+    "api/fudo/sales.js": { "maxDuration": 60 },
+    "api/fudo/products.js": { "maxDuration": 30 }
   }
 }

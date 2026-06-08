@@ -14,6 +14,11 @@
     "api/sii/rcv.js": { "maxDuration": 60 },
     "api/sii/test.js": { "maxDuration": 60 },
     "api/fudo/sales.js": { "maxDuration": 60 },
-    "api/fudo/products.js": { "maxDuration": 30 }
-  }
+    "api/fudo/products.js": { "maxDuration": 30 },
+    "api/fudo/sync-pull.js": { "maxDuration": 60 },
+    "api/cron/sync-fudo.js": { "maxDuration": 60 }
+  },
+  "crons": [
+    { "path": "/api/cron/sync-fudo", "schedule": "0 9 * * *" }
+  ]
 }

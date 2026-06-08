@@ -1,13 +1,16 @@
-import React, { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from 'recharts';
 import {
   TrendingUp, Receipt, Percent, DollarSign, Coins, Clock, BarChart3, Loader2,
+  RefreshCw, CheckCircle2,
 } from 'lucide-react';
 
 function clp(n) {
@@ -22,10 +25,15 @@ function clpShort(n) {
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 export default function PanelVentas() {
+  const queryClient = useQueryClient();
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+
   const { data: user } = useQuery({ queryKey: ['currentUser'], queryFn: () => base44.auth.me(), staleTime: 5 * 60 * 1000 });
 
-  const { data: sales = [], isLoading } = useQuery({
-    queryKey: ['panel-ventas-sales', user?.restaurant_ids],
+  // Ventas locales (entidad Sale en localStorage)
+  const { data: localSales = [] } = useQuery({
+    queryKey: ['panel-ventas-local', user?.restaurant_ids],
     queryFn: async () => {
       const rid = user?.restaurant_ids?.[0];
       const all = rid ? await base44.entities.Sale.filter({ restaurant_id: rid }) : await base44.entities.Sale.list();
@@ -35,6 +43,46 @@ export default function PanelVentas() {
     staleTime: 2 * 60 * 1000,
   });
 
+  // Ventas sincronizadas por el cron desde Fudo (Vercel KV)
+  const { data: fudoSync = { sales: [], lastSync: null, lastRunSummary: null }, isLoading: loadingFudo } = useQuery({
+    queryKey: ['panel-ventas-fudo-sync'],
+    queryFn: async () => {
+      const res = await fetch('/__fudo/sync-pull');
+      if (!res.ok) return { sales: [], lastSync: null };
+      return await res.json();
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const isLoading = !user || loadingFudo;
+
+  // Merge: prioridad a Fudo sync (por id), complementado con ventas locales
+  const sales = useMemo(() => {
+    const map = new Map();
+    for (const s of localSales) if (s.id) map.set(`local-${s.id}`, s);
+    for (const s of fudoSync.sales || []) if (!s.is_cancelled) map.set(`fudo-${s.id}`, s);
+    return [...map.values()];
+  }, [localSales, fudoSync]);
+
+  async function syncNow() {
+    setSyncing(true); setSyncResult(null);
+    try {
+      const res = await fetch('/__fudo/sync-pull', { method: 'POST' });
+      const data = await res.json();
+      setSyncResult({
+        ok: data.ok !== false,
+        message: data.lastRunSummary
+          ? `${data.lastRunSummary.broughtFromFudo} ventas nuevas traídas (${data.lastRunSummary.dateFrom} → ${data.lastRunSummary.dateTo}). Total en cache: ${data.lastRunSummary.totalInKv}.`
+          : (data.message || 'Sincronización completada'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['panel-ventas-fudo-sync'] });
+    } catch (err) {
+      setSyncResult({ ok: false, message: err.message });
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   const stats = useMemo(() => computeStats(sales), [sales]);
 
   if (isLoading) {
@@ -42,20 +90,54 @@ export default function PanelVentas() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-noa-navy flex items-center gap-2">
-          <BarChart3 className="w-6 h-6 text-noa-orange" /> Panel de Ventas
-        </h1>
-        <p className="text-gray-600 mt-1">Ventas, ticket promedio y márgenes de tu negocio.</p>
+    <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-noa-navy flex items-center gap-2 font-display">
+            <BarChart3 className="w-6 h-6 text-noa-orange" /> Panel de Ventas
+          </h1>
+          <p className="text-gray-600 mt-1">Ventas, ticket promedio y márgenes de tu negocio.</p>
+        </div>
+        <Button onClick={syncNow} disabled={syncing} className="bg-noa-navy hover:bg-noa-navy-mid">
+          {syncing ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
+          {syncing ? 'Sincronizando…' : 'Sincronizar Fudo ahora'}
+        </Button>
       </div>
+
+      {/* Estado de sincronización Fudo */}
+      <Card className="border-noa-orange/20 bg-noa-orange/5">
+        <CardContent className="pt-5">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              {fudoSync.lastSync ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-noa-success" />
+                  <span className="text-sm">
+                    <strong>Sincronización Fudo activa</strong> · {fudoSync.sales.length} ventas en cache · última sincronización: {new Date(fudoSync.lastSync).toLocaleString('es-CL')}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-amber-700">
+                  Aún no hay sincronización con Fudo. Click "Sincronizar Fudo ahora" o espera al cron diario (3 AM hora Chile).
+                </span>
+              )}
+            </div>
+            <Badge variant="outline" className="text-[10px]">Cron diario configurado</Badge>
+          </div>
+          {syncResult && (
+            <p className={`text-xs mt-2 ${syncResult.ok ? 'text-noa-success' : 'text-red-600'}`}>
+              {syncResult.message}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {sales.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-gray-500">
             <Receipt className="w-10 h-10 mx-auto mb-3 opacity-40" />
-            <p className="font-medium text-gray-700">Aún no hay ventas cargadas</p>
-            <p className="text-sm mt-1">Sincroniza tu POS Fudo (Settings → Integraciones) o importa ventas en "Ventas y Compras".</p>
+            <p className="font-medium text-gray-700">Aún no hay ventas en cache</p>
+            <p className="text-sm mt-1">Click "Sincronizar Fudo ahora" arriba para traer las ventas del último período, o espera al cron diario.</p>
           </CardContent>
         </Card>
       ) : (

@@ -24,6 +24,7 @@ import {
   UserCircle,
   Shield,
   Bot,
+  Search,
   Receipt } from
 "lucide-react";
 import CopilotButton from '@/components/copilot/CopilotButton';
@@ -46,7 +47,10 @@ const navSections = [
   items: [
   { name: 'Inventario', page: 'Inventory', icon: Package },
   { name: 'Cocina', page: 'Recipes', icon: ChefHat },
+  { name: 'Compras', page: 'Compras', icon: Receipt, ownerOnly: true },
+  { name: 'Panel de Ventas', page: 'PanelVentas', icon: BarChart3, ownerOnly: true },
   { name: 'Ventas y Compras', page: 'DataManagement', icon: ClipboardList },
+  { name: 'Producto y Servicio', page: 'Productos', icon: Package, ownerOnly: true },
   { name: 'SII', page: 'SII', icon: Receipt, ownerOnly: true }]
 
 },
@@ -398,7 +402,11 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Main Content */}
       <main className="lg:ml-72 min-h-screen pt-16 lg:pt-0">
-{children}
+        {/* Barra de búsqueda global (desktop) */}
+        <div className="hidden lg:flex sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200 px-6 py-3 justify-center">
+          <GlobalSearch />
+        </div>
+        {children}
       </main>
 
       {/* Copilot Floating Button, Tip Bubble & Chat - Solo propietarios/managers, no staff */}
@@ -411,4 +419,73 @@ export default function Layout({ children, currentPageName }) {
       }
     </div>);
 
+}
+
+// ───────── Barra de búsqueda global ─────────
+function GlobalSearch() {
+  const navigate = useNavigate();
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const { data: user } = useQuery({ queryKey: ['currentUser'], queryFn: () => base44.auth.me(), staleTime: 5 * 60 * 1000 });
+
+  // Indexa insumos, proveedores y recetas para búsqueda en vivo.
+  const { data: index = { items: [], suppliers: [], recipes: [] } } = useQuery({
+    queryKey: ['global-search-index', user?.restaurant_ids],
+    queryFn: async () => {
+      const rid = user?.restaurant_ids?.[0];
+      const [costs, recipes] = await Promise.all([
+        rid ? base44.entities.SupplyCost.filter({ restaurant_id: rid }) : base44.entities.SupplyCost.list(),
+        rid ? base44.entities.Recipe.filter({ restaurant_id: rid }) : base44.entities.Recipe.list(),
+      ]);
+      const items = new Set(), suppliers = new Set();
+      for (const c of costs || []) {
+        const n = c.supply_item_name || c.supply_name; if (n) items.add(n);
+        if (c.supplier) suppliers.add(c.supplier);
+      }
+      return { items: [...items], suppliers: [...suppliers], recipes: (recipes || []).map((r) => r.name).filter(Boolean) };
+    },
+    enabled: !!user,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const results = React.useMemo(() => {
+    if (!q.trim()) return [];
+    const term = q.toLowerCase();
+    const out = [];
+    for (const n of index.items) if (n.toLowerCase().includes(term)) out.push({ type: 'Insumo', label: n, page: 'Productos' });
+    for (const n of index.suppliers) if (n.toLowerCase().includes(term)) out.push({ type: 'Proveedor', label: n, page: 'Productos' });
+    for (const n of index.recipes) if (n.toLowerCase().includes(term)) out.push({ type: 'Elaborado', label: n, page: 'Productos' });
+    return out.slice(0, 8);
+  }, [q, index]);
+
+  function go(page) { setOpen(false); setQ(''); navigate(createPageUrl(page)); }
+
+  return (
+    <div className="relative w-full max-w-xl">
+      <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+      <input
+        value={q}
+        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={(e) => { if (e.key === 'Enter') go('Productos'); }}
+        placeholder="Buscar insumos, proveedores, elaborados…"
+        className="w-full pl-10 pr-4 py-2 rounded-full border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-noa-orange/40 focus:bg-white font-sans"
+      />
+      {open && q.trim() && (
+        <div className="absolute top-full mt-2 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
+          {results.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-gray-500">Sin resultados para "{q}"</div>
+          ) : results.map((r, i) => (
+            <button key={i} onMouseDown={() => go(r.page)}
+              className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 text-left">
+              <span className="text-sm text-gray-800">{r.label}</span>
+              <Badge variant="outline" className="text-[10px]">{r.type}</Badge>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

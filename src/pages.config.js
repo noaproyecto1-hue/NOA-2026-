@@ -48,6 +48,7 @@
  * The mainPage value must match a key in the PAGES object exactly.
  */
 import Clientes from './pages/Clientes';
+import Compras from './pages/Compras';
 import Copilot from './pages/Copilot';
 import Dashboard from './pages/Dashboard';
 import DataManagement from './pages/DataManagement';
@@ -56,7 +57,9 @@ import Inventory from './pages/Inventory';
 import Landing from './pages/Landing';
 import MyProfile from './pages/MyProfile';
 import Onboarding from './pages/Onboarding';
+import PanelVentas from './pages/PanelVentas';
 import PendingApproval from './pages/PendingApproval';
+import Productos from './pages/Productos';
 import Recipes from './pages/Recipes';
 import Restaurants from './pages/Restaurants';
 import Settings from './pages/Settings';
@@ -68,6 +71,7 @@ import __Layout from './Layout.jsx';
 
 export const PAGES = {
     "Clientes": Clientes,
+    "Compras": Compras,
     "Copilot": Copilot,
     "Dashboard": Dashboard,
     "DataManagement": DataManagement,
@@ -76,7 +80,9 @@ export const PAGES = {
     "Landing": Landing,
     "MyProfile": MyProfile,
     "Onboarding": Onboarding,
+    "PanelVentas": PanelVentas,
     "PendingApproval": PendingApproval,
+    "Productos": Productos,
     "Recipes": Recipes,
     "Restaurants": Restaurants,
     "Settings": Settings,

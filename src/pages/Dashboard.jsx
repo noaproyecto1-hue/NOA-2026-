@@ -31,7 +31,14 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [selectedRestaurant, setSelectedRestaurant] = useState("all");
   const [viewMode, setViewMode] = useState('monthly'); // weekly, monthly, annual
-  const [visualMode, setVisualMode] = useState('overview'); // overview, costs, incomeStatement, cashflow, alerts, vsTargets
+  const [visualMode, setVisualMode] = useState(() => {
+    // Permite deep-link desde el menú: Dashboard?tab=incomeStatement|cashflow|costs|alerts
+    try {
+      const t = new URLSearchParams(window.location.search).get('tab');
+      if (['overview', 'costs', 'incomeStatement', 'cashflow', 'alerts'].includes(t)) return t;
+    } catch {}
+    return 'overview';
+  }); // overview, costs, incomeStatement, cashflow, alerts, vsTargets
   // El dateRange se inicializa con la fecha actual, pero se actualiza cuando el user carga
   const [dateRange, setDateRange] = useState(() => ({
     from: startOfMonth(new Date()),

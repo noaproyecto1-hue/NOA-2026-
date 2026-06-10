@@ -12,13 +12,18 @@ import { seedIfEmpty, DEMO_USER } from './seeds.js';
 import { invokeFunction } from './functions-local.js';
 import { loadIntegrations } from '@/lib/integrations';
 import { getSession, setSession, clearSession } from './session.js';
+import { loadDemoData, clearDemoData } from './demo-data.js';
 
 if (typeof window !== 'undefined') {
   seedIfEmpty();
+  // Carga datos de demostración (ficticios) la primera vez. No toca SII ni Fudo.
+  loadDemoData().catch((e) => console.warn('[demo] error:', e));
   window.__b44Mock = {
     store,
     reset: () => store.reset(),
     seed: seedIfEmpty,
+    loadDemo: (opts) => loadDemoData({ force: true, ...opts }),
+    clearDemo: clearDemoData,
   };
 }
 

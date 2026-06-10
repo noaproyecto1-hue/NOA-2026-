@@ -25,6 +25,9 @@ import {
   Shield,
   Bot,
   Search,
+  Wallet,
+  FileBarChart2,
+  ShoppingCart,
   Receipt } from
 "lucide-react";
 import CopilotButton from '@/components/copilot/CopilotButton';
@@ -36,35 +39,36 @@ const navSections = [
 {
   title: 'Principal',
   items: [
-  { name: 'Dashboard', page: 'Dashboard', icon: LayoutDashboard },
-  { name: 'NOA Copilot', page: 'Copilot', icon: Bot, ownerOnly: true } // Solo propietarios/managers
-  // { name: 'Reporte de Ventas', page: 'DailyReport', icon: FileBarChart }, // Oculto temporalmente - próximamente
-  // { name: 'Alertas', page: 'Alerts', icon: Bell }, // Movido al Dashboard como pestaña
+  { name: 'Dashboard', page: 'Dashboard', icon: LayoutDashboard }
+  // NOA Copilot ahora es el botón flotante (carita IA) abajo a la derecha.
   ]
 },
 {
   title: 'Operaciones',
   items: [
+  { name: 'Ventas', page: 'PanelVentas', icon: BarChart3, ownerOnly: true },
+  { name: 'Compras', page: 'Compras', icon: ShoppingCart, ownerOnly: true },
   { name: 'Inventario', page: 'Inventory', icon: Package },
-  { name: 'Cocina', page: 'Recipes', icon: ChefHat },
-  { name: 'Compras', page: 'Compras', icon: Receipt, ownerOnly: true },
-  { name: 'Panel de Ventas', page: 'PanelVentas', icon: BarChart3, ownerOnly: true },
-  { name: 'Ventas y Compras', page: 'DataManagement', icon: ClipboardList },
-  { name: 'Producto y Servicio', page: 'Productos', icon: Package, ownerOnly: true },
-  { name: 'SII', page: 'SII', icon: Receipt, ownerOnly: true }]
+  { name: 'Cocina', page: 'Recipes', icon: ChefHat }]
 
 },
 {
-  title: 'Análisis',
+  title: 'Finanzas',
   items: [
-  // { name: 'Ventas y Costos', page: 'SalesAnalysis', icon: BarChart3 }, // Movido al Dashboard como pestaña
+  { name: 'Estado de Resultado', page: 'Dashboard', query: 'tab=incomeStatement', icon: FileBarChart2, ownerOnly: true },
+  { name: 'Flujo de Caja', page: 'Dashboard', query: 'tab=cashflow', icon: Wallet, ownerOnly: true },
+  { name: 'SII (Impuestos mensuales)', page: 'SII', icon: Receipt, ownerOnly: true }]
+
+},
+{
+  title: 'RRHH',
+  items: [
   { name: 'Team / RRHH', page: 'Empleados', icon: UserCircle },
   { name: 'Clientes', page: 'Clientes', icon: User }]
 
-
 },
 {
-  title: 'Configuración',
+  title: 'Usuario',
   items: [
   { name: 'Restaurantes', page: 'Restaurants', icon: Store },
   { name: 'Mi Perfil', page: 'MyProfile', icon: UserCircle },
@@ -307,8 +311,8 @@ export default function Layout({ children, currentPageName }) {
 
                   return (
                     <Link
-                      key={item.page}
-                      to={createPageUrl(item.page)}
+                      key={item.name}
+                      to={createPageUrl(item.page) + (item.query ? `?${item.query}` : '')}
                       onClick={() => setSidebarOpen(false)}
                       className={`
                           group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative

@@ -52,8 +52,8 @@ export const store = {
     writeAll(entity, items);
     return Promise.resolve(item);
   },
-  bulkCreate(entity, dataArray) {
-    const items = readAll(entity);
+  bulkCreate(entity, dataArray, options = {}) {
+    const items = options.replace ? [] : readAll(entity);
     const now = new Date().toISOString();
     const created = dataArray.map((d) => ({
       id: genId(),

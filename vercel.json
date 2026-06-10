@@ -8,7 +8,8 @@
     { "source": "/__fudo/:path*", "destination": "/api/fudo/:path*" },
     { "source": "/__llm/:path*", "destination": "/api/llm/:path*" },
     { "source": "/__email/:path*", "destination": "/api/email/:path*" },
-    { "source": "/__config", "destination": "/api/config" }
+    { "source": "/__config", "destination": "/api/config" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "functions": {
     "api/sii/rcv.js": { "maxDuration": 60 },

@@ -10,7 +10,7 @@
 import { store } from './store.js';
 
 const RID = 'rest_demo_1';
-const FLAG = 'noa_demo_loaded_v1';
+const FLAG = 'noa_demo_loaded_v2';
 
 const rnd = (min, max) => min + Math.random() * (max - min);
 const rndInt = (min, max) => Math.floor(rnd(min, max + 1));
@@ -187,6 +187,29 @@ export async function loadDemoData({ force = false } = {}) {
     orders_count: rndInt(80, 600), period: new Date().toISOString().slice(0, 7),
   }));
 
+  // ── OpEx (gastos operacionales) — alimenta los donuts del Dashboard ──
+  // Tipos: payroll (RRHH), rent (Renta), utilities/insurance (Gastos fijos),
+  //        marketing, maintenance (Administración).
+  const OPEX_PLAN = [
+    ['payroll', 'PAYROLL/RRHH', 15200000],
+    ['rent', 'REAL STATE/RENTA', 1825000],
+    ['utilities', 'GASTOS FIJOS', 720000],
+    ['insurance', 'GASTOS FIJOS', 280000],
+    ['maintenance', 'ADMINISTRACIÓN', 410000],
+    ['marketing', 'MARKETING', 608000],
+  ];
+  const opex = [];
+  for (let monthsBack = 2; monthsBack >= 0; monthsBack--) {
+    for (const [type, center, base] of OPEX_PLAN) {
+      const amount = Math.round(base * rnd(0.95, 1.05));
+      opex.push({
+        restaurant_id: RID, type, cost_center_name: center, amount,
+        date: isoDaysAgo(monthsBack * 30 + 5), payment_status: 'pagado',
+        description: `${center} — mensual`,
+      });
+    }
+  }
+
   // Reemplaza solo las entidades de negocio (NO User/Restaurant/SyncLog/SII/Fudo)
   store.bulkCreate('SupplyItem', supplyItems, { replace: true });
   store.bulkCreate('SupplyCost', supplyCosts, { replace: true });
@@ -195,6 +218,7 @@ export async function loadDemoData({ force = false } = {}) {
   store.bulkCreate('Supplier', suppliers, { replace: true });
   store.bulkCreate('Customer', customers, { replace: true });
   store.bulkCreate('EmployeeMetrics', employeeMetrics, { replace: true });
+  store.bulkCreate('OpEx', opex, { replace: true });
 
   // Familias extra para el gestor de familias
   try { localStorage.setItem('noa_familias_extra', JSON.stringify(Object.keys(FAMILIAS))); } catch {}
@@ -206,10 +230,11 @@ export async function loadDemoData({ force = false } = {}) {
 
 export async function clearDemoData() {
   if (typeof window === 'undefined') return;
-  for (const e of ['SupplyItem', 'SupplyCost', 'Sale', 'Recipe', 'Supplier', 'Customer', 'EmployeeMetrics']) {
+  for (const e of ['SupplyItem', 'SupplyCost', 'Sale', 'Recipe', 'Supplier', 'Customer', 'EmployeeMetrics', 'OpEx']) {
     store.bulkCreate(e, [], { replace: true });
   }
   localStorage.removeItem(FLAG);
+  localStorage.removeItem('noa_demo_loaded_v1');
   localStorage.removeItem('noa_familias_extra');
   console.info('[demo] Datos de demostración borrados.');
 }

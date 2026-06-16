@@ -37,4 +37,5 @@ certs/
 # Configuración local de Claude Code / herramientas del editor
 .claude/
 .cursor/
-*.swp
+*.swp_ppt_extract/
+*.pptx

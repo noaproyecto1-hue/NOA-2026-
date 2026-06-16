@@ -21,7 +21,21 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import {
   AlertCircle, Loader2, FileText, ArrowLeft, Search, Building2, Receipt,
   TrendingUp, Layers, Boxes, Plus, Pencil, Trash2, ChevronRight, ChevronDown, X, Check,
+  ArrowUp, ArrowDown, Upload, Calendar,
 } from 'lucide-react';
+
+// Flecha de comparación vs mes anterior: rojo = subió el gasto, azul = bajó.
+function MonthArrow({ current, previous }) {
+  if (!previous || previous === 0) return null;
+  const change = (current - previous) / previous * 100;
+  if (Math.abs(change) < 0.5) return null;
+  const up = change > 0;
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[11px] font-semibold ${up ? 'text-red-600' : 'text-blue-600'}`} title="vs mes anterior">
+      {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}{up ? '+' : ''}{change.toFixed(0)}%
+    </span>
+  );
+}
 
 // ───────── helpers ─────────
 function clp(n) { return (Number(n) || 0).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }); }
@@ -47,18 +61,22 @@ export default function Compras() {
     <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
       <div>
         <h1 className="text-2xl font-bold text-noa-navy font-display">Compras</h1>
-        <p className="text-gray-600 mt-1">Gasto por familia de insumos, catálogo de insumos y facturas del SII.</p>
+        <p className="text-gray-600 mt-1">Gasto de insumos por familia, insumo, proveedor y fecha. Facturas y anexos del SII.</p>
       </div>
 
       <Tabs defaultValue="familia">
         <TabsList>
           <TabsTrigger value="familia"><Layers className="w-4 h-4 mr-1.5" /> Por familia</TabsTrigger>
-          <TabsTrigger value="insumos"><Boxes className="w-4 h-4 mr-1.5" /> Insumos</TabsTrigger>
-          <TabsTrigger value="facturas"><Receipt className="w-4 h-4 mr-1.5" /> Facturas SII</TabsTrigger>
+          <TabsTrigger value="insumos"><Boxes className="w-4 h-4 mr-1.5" /> Por insumos</TabsTrigger>
+          <TabsTrigger value="proveedores"><Building2 className="w-4 h-4 mr-1.5" /> Proveedores</TabsTrigger>
+          <TabsTrigger value="fecha"><Receipt className="w-4 h-4 mr-1.5" /> Por fecha</TabsTrigger>
+          <TabsTrigger value="anexos"><FileText className="w-4 h-4 mr-1.5" /> Anexos</TabsTrigger>
         </TabsList>
         <TabsContent value="familia" className="mt-4"><PorFamilia rid={rid} /></TabsContent>
-        <TabsContent value="insumos" className="mt-4"><InsumosCRUD rid={rid} /></TabsContent>
-        <TabsContent value="facturas" className="mt-4"><FacturasSII /></TabsContent>
+        <TabsContent value="insumos" className="mt-4"><PorInsumos rid={rid} /></TabsContent>
+        <TabsContent value="proveedores" className="mt-4"><PorProveedor rid={rid} /></TabsContent>
+        <TabsContent value="fecha" className="mt-4"><FacturasSII /></TabsContent>
+        <TabsContent value="anexos" className="mt-4"><Anexos /></TabsContent>
       </Tabs>
     </div>
   );
@@ -172,6 +190,7 @@ function PorFamilia({ rid }) {
                       <span className="inline-flex items-center gap-1.5">
                         {isOpen ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                         {f.name} <span className="text-gray-400 text-xs">({f.itemsList.length})</span>
+                        <MonthArrow current={f.byMonth[now.getMonth()] || 0} previous={f.byMonth[now.getMonth() - 1] || 0} />
                       </span>
                     </TableCell>
                     {monthsCols.map((m) => {
@@ -615,6 +634,224 @@ function SupplierDetail({ rut, name, allRows, onBack, onInvoice }) {
           ))}</TableBody>
         </Table>
       </div>
+    </div>
+  );
+}
+
+// ═════════════ Por insumos ═════════════
+function useComprasCosts(rid) {
+  return useQuery({
+    queryKey: ['compras-costs-all', rid],
+    queryFn: async () => {
+      const all = rid ? await base44.entities.SupplyCost.filter({ restaurant_id: rid }) : await base44.entities.SupplyCost.list();
+      return (all || []).filter((c) => c.supply_type !== 'opex');
+    },
+    enabled: true, staleTime: 2 * 60 * 1000,
+  });
+}
+
+function PorInsumos({ rid }) {
+  const { data: costs = [], isLoading } = useComprasCosts(rid);
+  const [search, setSearch] = useState('');
+
+  const items = useMemo(() => {
+    const map = {};
+    for (const c of costs) {
+      const n = c.supply_item_name || c.supply_name; if (!n) continue;
+      const amount = Number(c.total_cost) || 0;
+      const qty = Number(c.quantity_purchased) || 0;
+      if (!map[n]) map[n] = { name: n, familia: c.supply_category || '—', compras: 0, qty: 0, total: 0, proveedores: new Set(), lastDate: '', unit: c.unit_of_measure || '' };
+      const it = map[n];
+      it.compras += 1; it.qty += qty; it.total += amount;
+      if (c.supplier) it.proveedores.add(c.supplier);
+      const d = (c.date || '').slice(0, 10);
+      if (d > it.lastDate) { it.lastDate = d; it.unit = c.unit_of_measure || it.unit; }
+    }
+    return Object.values(map).map((i) => ({ ...i, proveedores: i.proveedores.size })).sort((a, b) => b.total - a.total);
+  }, [costs]);
+
+  const filtered = useMemo(() => search.trim() ? items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase())) : items, [items, search]);
+  if (isLoading) return <div className="flex items-center gap-2 text-gray-500"><Loader2 className="w-4 h-4 animate-spin" /> Cargando…</div>;
+  if (items.length === 0) return <EmptyData msg="No hay compras registradas." />;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <MiniStat label="Insumos comprados" value={items.length} />
+        <MiniStat label="Total compras" value={clp(items.reduce((s, i) => s + i.total, 0))} highlight />
+        <MiniStat label="Resultados" value={filtered.length} />
+      </div>
+      <div className="relative max-w-sm">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar insumo" className="pl-9" />
+      </div>
+      <div className="overflow-x-auto border rounded-lg bg-white">
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>Insumo</TableHead><TableHead>Familia</TableHead><TableHead className="text-right">Compras</TableHead>
+            <TableHead className="text-right">Cantidad</TableHead><TableHead className="text-right">Proveedores</TableHead>
+            <TableHead>Última compra</TableHead><TableHead className="text-right">Total comprado</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {filtered.slice(0, 300).map((i) => (
+              <TableRow key={i.name} className="hover:bg-gray-50">
+                <TableCell className="font-medium text-noa-navy">{i.name}</TableCell>
+                <TableCell><Badge variant="outline" className="text-xs">{i.familia}</Badge></TableCell>
+                <TableCell className="text-right text-xs">{i.compras}</TableCell>
+                <TableCell className="text-right text-xs">{i.qty.toLocaleString('es-CL')} {i.unit}</TableCell>
+                <TableCell className="text-right text-xs">{i.proveedores}</TableCell>
+                <TableCell className="text-xs">{fdate(i.lastDate)}</TableCell>
+                <TableCell className="text-right text-xs font-semibold">{clp(i.total)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+// ═════════════ Proveedores ═════════════
+function PorProveedor({ rid }) {
+  const { data: costs = [], isLoading } = useComprasCosts(rid);
+  const [search, setSearch] = useState('');
+
+  const provs = useMemo(() => {
+    const map = {};
+    for (const c of costs) {
+      const n = c.supplier || '—';
+      if (!map[n]) map[n] = { name: n, taxId: c.supplier_tax_id || '', compras: 0, total: 0, items: new Set(), lastDate: '' };
+      const p = map[n];
+      p.compras += 1; p.total += Number(c.total_cost) || 0;
+      if (c.supply_item_name || c.supply_name) p.items.add(c.supply_item_name || c.supply_name);
+      if (c.supplier_tax_id) p.taxId = c.supplier_tax_id;
+      const d = (c.date || '').slice(0, 10); if (d > p.lastDate) p.lastDate = d;
+    }
+    return Object.values(map).map((p) => ({ ...p, items: p.items.size })).sort((a, b) => b.total - a.total);
+  }, [costs]);
+
+  const filtered = useMemo(() => search.trim() ? provs.filter((p) => p.name.toLowerCase().includes(search.toLowerCase())) : provs, [provs, search]);
+  if (isLoading) return <div className="flex items-center gap-2 text-gray-500"><Loader2 className="w-4 h-4 animate-spin" /> Cargando…</div>;
+  if (provs.length === 0) return <EmptyData msg="No hay compras registradas." />;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <MiniStat label="Proveedores" value={provs.length} />
+        <MiniStat label="Total compras" value={clp(provs.reduce((s, p) => s + p.total, 0))} highlight />
+        <MiniStat label="Resultados" value={filtered.length} />
+      </div>
+      <div className="relative max-w-sm">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar proveedor" className="pl-9" />
+      </div>
+      <div className="overflow-x-auto border rounded-lg bg-white">
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>Proveedor</TableHead><TableHead>RUT</TableHead><TableHead className="text-right">Facturas</TableHead>
+            <TableHead className="text-right">Insumos</TableHead><TableHead>Última compra</TableHead><TableHead className="text-right">Total comprado</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {filtered.map((p) => (
+              <TableRow key={p.name} className="hover:bg-gray-50">
+                <TableCell className="font-medium text-noa-navy">{p.name}</TableCell>
+                <TableCell className="text-xs">{p.taxId || '—'}</TableCell>
+                <TableCell className="text-right text-xs">{p.compras}</TableCell>
+                <TableCell className="text-right text-xs">{p.items}</TableCell>
+                <TableCell className="text-xs">{fdate(p.lastDate)}</TableCell>
+                <TableCell className="text-right text-xs font-semibold">{clp(p.total)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+// ═════════════ Anexos (otros documentos tributarios) ═════════════
+function Anexos() {
+  const [docs, setDocs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('noa_anexos') || '[]'); } catch { return []; }
+  });
+  const [form, setForm] = useState(null);
+
+  function save(list) { setDocs(list); try { localStorage.setItem('noa_anexos', JSON.stringify(list)); } catch {} }
+  function add(d) { save([{ id: 'anx_' + Date.now(), ...d }, ...docs]); setForm(null); }
+  function remove(id) { if (confirm('¿Eliminar este anexo?')) save(docs.filter((x) => x.id !== id)); }
+
+  const TIPOS = ['Nota de crédito', 'Nota de débito', 'Guía de despacho', 'Boleta', 'Liquidación', 'Otro documento tributario'];
+
+  return (
+    <div className="space-y-4">
+      <Alert className="border-blue-200 bg-blue-50">
+        <FileText className="w-4 h-4 text-blue-600" />
+        <AlertTitle className="text-sm">Anexos · Otros documentos tributarios</AlertTitle>
+        <AlertDescription className="text-xs">
+          Registra notas de crédito/débito, guías de despacho y otros documentos que no son facturas de compra estándar.
+        </AlertDescription>
+      </Alert>
+
+      <div className="flex justify-end">
+        <Button className="bg-noa-navy hover:bg-noa-navy-mid" onClick={() => setForm({ tipo: TIPOS[0], folio: '', proveedor: '', fecha: new Date().toISOString().slice(0, 10), monto: '', notas: '' })}>
+          <Plus className="w-4 h-4 mr-1.5" /> Nuevo anexo
+        </Button>
+      </div>
+
+      {docs.length === 0 ? (
+        <EmptyData msg="No hay anexos registrados. Agrega el primero con 'Nuevo anexo'." />
+      ) : (
+        <div className="overflow-x-auto border rounded-lg bg-white">
+          <Table>
+            <TableHeader><TableRow>
+              <TableHead>Tipo</TableHead><TableHead>Folio</TableHead><TableHead>Proveedor</TableHead>
+              <TableHead>Fecha</TableHead><TableHead className="text-right">Monto</TableHead><TableHead>Notas</TableHead><TableHead></TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {docs.map((d) => (
+                <TableRow key={d.id}>
+                  <TableCell><Badge variant="outline" className="text-xs">{d.tipo}</Badge></TableCell>
+                  <TableCell className="text-xs">{d.folio || '—'}</TableCell>
+                  <TableCell className="text-xs">{d.proveedor || '—'}</TableCell>
+                  <TableCell className="text-xs">{fdate(d.fecha)}</TableCell>
+                  <TableCell className="text-right text-xs font-semibold">{clp(d.monto)}</TableCell>
+                  <TableCell className="text-xs text-gray-500">{d.notas || '—'}</TableCell>
+                  <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => remove(d.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {form && (
+        <Dialog open onOpenChange={() => setForm(null)}>
+          <DialogContent className="font-sans">
+            <DialogHeader><DialogTitle className="font-display text-noa-navy">Nuevo anexo</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1"><Label>Tipo de documento</Label>
+                <Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1"><Label>Folio</Label><Input value={form.folio} onChange={(e) => setForm((f) => ({ ...f, folio: e.target.value }))} /></div>
+                <div className="space-y-1"><Label>Fecha</Label><Input type="date" value={form.fecha} onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1"><Label>Proveedor</Label><Input value={form.proveedor} onChange={(e) => setForm((f) => ({ ...f, proveedor: e.target.value }))} /></div>
+                <div className="space-y-1"><Label>Monto</Label><Input type="number" value={form.monto} onChange={(e) => setForm((f) => ({ ...f, monto: e.target.value }))} /></div>
+              </div>
+              <div className="space-y-1"><Label>Notas</Label><Input value={form.notas} onChange={(e) => setForm((f) => ({ ...f, notas: e.target.value }))} /></div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setForm(null)}>Cancelar</Button>
+              <Button className="bg-noa-navy hover:bg-noa-navy-mid" onClick={() => add({ ...form, monto: Number(form.monto) || 0 })}><Check className="w-4 h-4 mr-1.5" /> Guardar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

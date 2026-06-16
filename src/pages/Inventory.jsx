@@ -1073,7 +1073,7 @@ export default function Inventory() {
                           onClick={() => handleSupplySort('category')}
                         >
                           <div className="flex items-center gap-1">
-                            Categoría
+                            Clasificación Familia
                             <SortIcon columnKey="category" sortConfig={supplySortConfig} />
                           </div>
                         </th>
@@ -1110,7 +1110,7 @@ export default function Inventory() {
                           </div>
                         </th>
                         {!isStaff && (
-                        <th 
+                        <th
                           className="text-right py-4 px-5 font-semibold text-gray-700 cursor-pointer hover:bg-gray-100/50 select-none transition-colors"
                           onClick={() => handleSupplySort('current_stock')}
                         >
@@ -1120,8 +1120,19 @@ export default function Inventory() {
                           </div>
                         </th>
                         )}
+                        {!isStaff && (
+                        <th
+                          className="text-right py-4 px-5 font-semibold text-gray-700 cursor-pointer hover:bg-gray-100/50 select-none transition-colors"
+                          onClick={() => handleSupplySort('min_stock')}
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            Stock Mínimo
+                            <SortIcon columnKey="min_stock" sortConfig={supplySortConfig} />
+                          </div>
+                        </th>
+                        )}
 
-                        {!isStaff && <th className="text-center py-4 px-5 font-semibold text-gray-700">Estado</th>}
+                        {!isStaff && <th className="text-center py-4 px-5 font-semibold text-gray-700">Análisis de compra</th>}
                         {!isStaff && <th className="text-center py-4 px-5 font-semibold text-gray-700">Acciones</th>}
                       </tr>
                     </thead>
@@ -1209,6 +1220,11 @@ export default function Inventory() {
                               })()}
                             </td>
                             )}
+                            {!isStaff && (
+                            <td className="py-4 px-5 text-right">
+                              <span className="text-gray-600 font-medium">{item.min_stock || 0}</span>
+                            </td>
+                            )}
 
                             {!isStaff && (
                             <td className="py-4 px-5 text-center">
@@ -1223,13 +1239,13 @@ export default function Inventory() {
                                     } else if (status === 'warning') {
                                       return (
                                         <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 shadow-sm font-medium px-3 py-1">
-                                          🟠 Bajo
+                                          🟠 Revisión
                                         </Badge>
                                       );
                                     } else {
                                       return (
                                         <Badge className="bg-gradient-to-r from-emerald-500 to-green-500 text-white border-0 shadow-sm font-medium px-3 py-1">
-                                          ✓ OK
+                                          ✓ Normal
                                         </Badge>
                                       );
                                     }

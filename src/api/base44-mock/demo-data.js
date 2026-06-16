@@ -10,7 +10,7 @@
 import { store } from './store.js';
 
 const RID = 'rest_demo_1';
-const FLAG = 'noa_demo_loaded_v2';
+const FLAG = 'noa_demo_loaded_v3';
 
 const rnd = (min, max) => min + Math.random() * (max - min);
 const rndInt = (min, max) => Math.floor(rnd(min, max + 1));
@@ -99,13 +99,25 @@ export async function loadDemoData({ force = false } = {}) {
   let invoiceCounter = 38560000;
   const supplyCosts = [];
 
+  // Área de conteo según familia (Barra / Cocina / Salón)
+  const AREA_POR_FAMILIA = {
+    'Proteína animal': 'Cocina', 'Lácteos y huevo': 'Cocina', 'Frutas y verduras': 'Cocina',
+    'Abarrotes y secos': 'Cocina', 'Panadería y masas': 'Cocina', 'Aceites y mantecas': 'Cocina',
+    'Bebidas y aguas': 'Barra',
+  };
   for (const [familia, items] of Object.entries(FAMILIAS)) {
     for (const [name, unit, basePrice] of items) {
       const [supName, supRut] = pick(PROVEEDORES);
+      const minStock = rndInt(3, 15);
+      const curStock = rndInt(0, 60);
+      const area = AREA_POR_FAMILIA[familia] || 'Sin clasificación';
       supplyItems.push({
-        restaurant_id: RID, name, category: familia, unit,
-        stock: rndInt(5, 60), min_stock: rndInt(3, 15),
-        cost_per_unit: Math.round(basePrice), supplier: supName, is_active: true,
+        restaurant_id: RID, name, category: familia, supply_category: familia,
+        unit, unit_of_measure: unit, area,
+        // Campos que usa la página de Inventario:
+        current_stock: curStock, min_stock: minStock, warning_stock: minStock + rndInt(2, 6),
+        average_unit_cost: Math.round(basePrice), cost_per_unit: Math.round(basePrice),
+        cost_center_name: 'Food Cost', supplier: supName, is_active: true,
       });
 
       // Historial de compras: 12 meses, 1-3 compras por mes, con deriva de precio
@@ -235,6 +247,7 @@ export async function clearDemoData() {
   }
   localStorage.removeItem(FLAG);
   localStorage.removeItem('noa_demo_loaded_v1');
+  localStorage.removeItem('noa_demo_loaded_v2');
   localStorage.removeItem('noa_familias_extra');
   console.info('[demo] Datos de demostración borrados.');
 }

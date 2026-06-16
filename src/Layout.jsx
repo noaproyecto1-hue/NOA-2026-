@@ -57,6 +57,7 @@ const navSections = [
   items: [
   { name: 'Estado de Resultado', page: 'Dashboard', query: 'tab=incomeStatement', icon: FileBarChart2, ownerOnly: true },
   { name: 'Flujo de Caja', page: 'Dashboard', query: 'tab=cashflow', icon: Wallet, ownerOnly: true },
+  { name: 'Costos Operacionales', page: 'CostosOperacionales', icon: Wallet, ownerOnly: true },
   { name: 'SII (Impuestos mensuales)', page: 'SII', icon: Receipt, ownerOnly: true }]
 
 },

@@ -50,6 +50,7 @@
 import Clientes from './pages/Clientes';
 import Compras from './pages/Compras';
 import Copilot from './pages/Copilot';
+import CostosOperacionales from './pages/CostosOperacionales';
 import Dashboard from './pages/Dashboard';
 import DataManagement from './pages/DataManagement';
 import Empleados from './pages/Empleados';
@@ -73,6 +74,7 @@ export const PAGES = {
     "Clientes": Clientes,
     "Compras": Compras,
     "Copilot": Copilot,
+    "CostosOperacionales": CostosOperacionales,
     "Dashboard": Dashboard,
     "DataManagement": DataManagement,
     "Empleados": Empleados,

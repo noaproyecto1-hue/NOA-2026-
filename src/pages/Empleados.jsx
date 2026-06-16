@@ -235,6 +235,9 @@ export default function Empleados() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Resumen RRHH — total, % sobre venta, alerta si supera 30% */}
+        <RRHHSummary restaurantId={selectedRestaurant !== 'all' ? selectedRestaurant : (accessibleRestaurants[0]?.id)} />
+
         {/* Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -487,6 +490,59 @@ export default function Empleados() {
         currency={selectedCurrency}
       />
 
+    </div>
+  );
+}
+// ───────── Resumen RRHH (Costos de personal) ─────────
+function RRHHSummary({ restaurantId }) {
+  const { data: opex = [] } = useQuery({
+    queryKey: ['rrhh-opex', restaurantId],
+    queryFn: async () => {
+      const all = restaurantId ? await base44.entities.OpEx.filter({ restaurant_id: restaurantId }) : await base44.entities.OpEx.list();
+      return all || [];
+    },
+    enabled: true, staleTime: 60 * 1000,
+  });
+  const { data: sales = [] } = useQuery({
+    queryKey: ['rrhh-sales', restaurantId],
+    queryFn: async () => {
+      const all = restaurantId ? await base44.entities.Sale.filter({ restaurant_id: restaurantId }) : await base44.entities.Sale.list();
+      return (all || []).filter((s) => !s.is_cancelled);
+    },
+    enabled: true, staleTime: 2 * 60 * 1000,
+  });
+
+  const now = new Date();
+  const inMonth = (d) => { const x = new Date(d); return x.getFullYear() === now.getFullYear() && x.getMonth() === now.getMonth(); };
+
+  const totalRRHH = opex.filter((o) => o.type === 'payroll' || (o.cost_center_name || '').toUpperCase().includes('RRHH') || (o.cost_center_name || '').toUpperCase().includes('PAYROLL')).filter((o) => inMonth(o.date)).reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  const ventaMes = sales.filter((s) => inMonth(s.date_time)).reduce((s, x) => s + (Number(x.total_amount) || 0), 0);
+  const pctVenta = ventaMes > 0 ? totalRRHH / ventaMes * 100 : 0;
+  const MAX = 30; // umbral máximo configurable
+  const alerta = pctVenta > MAX;
+
+  const clp = (n) => (Number(n) || 0).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+
+  return (
+    <div className={`mb-6 rounded-2xl border p-5 flex items-center justify-between flex-wrap gap-4 ${alerta ? 'border-red-300 bg-red-50' : 'border-emerald-200 bg-emerald-50'}`}>
+      <div>
+        <p className="text-xs text-gray-500">Total RRHH (mes actual)</p>
+        <p className="text-2xl font-bold text-noa-navy" style={{ fontFamily: '"Bricolage Grotesque", system-ui' }}>{clp(totalRRHH)}</p>
+      </div>
+      <div className="text-center">
+        <p className="text-xs text-gray-500">% sobre venta</p>
+        <p className={`text-2xl font-bold ${alerta ? 'text-red-600' : 'text-emerald-600'}`}>{pctVenta.toFixed(1)}%</p>
+      </div>
+      <div className="text-center">
+        <p className="text-xs text-gray-500">Máximo recomendado</p>
+        <p className="text-2xl font-bold text-gray-700">{MAX}%</p>
+      </div>
+      {alerta && (
+        <div className="flex items-center gap-2 text-red-700 bg-red-100 rounded-xl px-4 py-2">
+          <span className="text-lg">⚠️</span>
+          <span className="text-sm font-medium">Costo de personal supera el {MAX}% de la venta</span>
+        </div>
+      )}
     </div>
   );
 }

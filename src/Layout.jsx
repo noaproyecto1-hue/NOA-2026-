@@ -48,7 +48,7 @@ const navSections = [
   items: [
   { name: 'Ventas', page: 'PanelVentas', icon: BarChart3, ownerOnly: true },
   { name: 'Compras', page: 'Compras', icon: ShoppingCart, ownerOnly: true },
-  { name: 'Inventario', page: 'Inventory', icon: Package },
+  { name: 'Productos', page: 'Inventory', icon: Package },
   { name: 'Cocina', page: 'Recipes', icon: ChefHat }]
 
 },

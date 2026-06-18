@@ -691,8 +691,8 @@ export default function Inventory() {
                 <Package className="w-7 h-7 lg:w-8 lg:h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl lg:text-4xl font-bold text-white tracking-tight">Inventario</h1>
-                <p className="text-white/70 mt-1">Gestiona tus insumos y stock</p>
+                <h1 className="text-2xl lg:text-4xl font-bold text-white tracking-tight">Productos</h1>
+                <p className="text-white/70 mt-1">Insumos genéricos, inventario y stock</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-3">

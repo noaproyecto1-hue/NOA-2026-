@@ -769,88 +769,87 @@ function PorProveedor({ rid }) {
   );
 }
 
-// ═════════════ Anexos (otros documentos tributarios) ═════════════
+// ═════════════ Anexos (otros documentos tributarios del SII) ═════════════
 function Anexos() {
-  const [docs, setDocs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('noa_anexos') || '[]'); } catch { return []; }
+  const [from, setFrom] = useState(firstOfMonthISO());
+  const [to, setTo] = useState(todayISO());
+  const [af, setAf] = useState(from); const [at, setAt] = useState(to);
+  const [search, setSearch] = useState("");
+
+  const months = useMemo(() => monthsInRange(af, at), [af, at]);
+  const queries = useQueries({
+    queries: months.map(({ year, month }) => ({
+      queryKey: ["anexos-rcv", year, month], queryFn: () => fetchRcv("compras", year, month),
+      enabled: months.length > 0, retry: 0, staleTime: 5 * 60 * 1000,
+    })),
   });
-  const [form, setForm] = useState(null);
-
-  function save(list) { setDocs(list); try { localStorage.setItem('noa_anexos', JSON.stringify(list)); } catch {} }
-  function add(d) { save([{ id: 'anx_' + Date.now(), ...d }, ...docs]); setForm(null); }
-  function remove(id) { if (confirm('¿Eliminar este anexo?')) save(docs.filter((x) => x.id !== id)); }
-
-  const TIPOS = ['Nota de crédito', 'Nota de débito', 'Guía de despacho', 'Boleta', 'Liquidación', 'Otro documento tributario'];
+  const isLoading = queries.some((q) => q.isLoading || q.isFetching);
+  // Anexos = todo lo que NO es factura estándar (33) ni exenta (34)
+  const rows = useMemo(() => {
+    const all = [];
+    queries.forEach((q) => (q.data?.data?.compras?.detalleCompras || []).forEach((d) => {
+      if (![33, 34].includes(Number(d.tipoDTE))) all.push(d);
+    }));
+    return all.sort((a, b) => (b.fechaEmision || "").localeCompare(a.fechaEmision || ""));
+  }, [queries]);
+  const filtered = useMemo(() => {
+    if (!search.trim()) return rows;
+    const s = search.toLowerCase();
+    return rows.filter((r) => String(r.folio||"").toLowerCase().includes(s) || (r.razonSocial||"").toLowerCase().includes(s) || (r.rutProveedor||"").toLowerCase().includes(s));
+  }, [rows, search]);
+  const totalBruto = filtered.reduce((s, r) => s + (Number(r.montoTotal)||0), 0);
 
   return (
     <div className="space-y-4">
       <Alert className="border-blue-200 bg-blue-50">
         <FileText className="w-4 h-4 text-blue-600" />
         <AlertTitle className="text-sm">Anexos · Otros documentos tributarios</AlertTitle>
-        <AlertDescription className="text-xs">
-          Registra notas de crédito/débito, guías de despacho y otros documentos que no son facturas de compra estándar.
-        </AlertDescription>
+        <AlertDescription className="text-xs">En esta vista aparecen otros documentos tributarios del SII: notas de crédito, notas de débito, guías de despacho, entre otros.</AlertDescription>
       </Alert>
 
-      <div className="flex justify-end">
-        <Button className="bg-noa-navy hover:bg-noa-navy-mid" onClick={() => setForm({ tipo: TIPOS[0], folio: '', proveedor: '', fecha: new Date().toISOString().slice(0, 10), monto: '', notas: '' })}>
-          <Plus className="w-4 h-4 mr-1.5" /> Nuevo anexo
-        </Button>
+      <Card><CardContent className="pt-6"><div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1"><Label>Desde</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" /></div>
+        <div className="space-y-1"><Label>Hasta</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" /></div>
+        <Button onClick={() => { setAf(from); setAt(to); }} className="bg-noa-navy hover:bg-noa-navy-mid">Consultar</Button>
+        <div className="flex-1 min-w-[200px] space-y-1"><Label>Buscar</Label>
+          <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Folio, proveedor o RUT" className="pl-9" /></div></div>
+      </div></CardContent></Card>
+
+      <div className="flex items-center justify-between text-sm text-gray-600 flex-wrap gap-2">
+        <span className="inline-flex items-center gap-3">
+          {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Consultando…</> : <><FileText className="w-4 h-4" /> {filtered.length} documentos · {clp(totalBruto)}</>}
+        </span>
+        <span className="inline-flex items-center gap-4 text-xs">
+          <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> NC anula completa</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> NC anula parcial</span>
+        </span>
       </div>
 
-      {docs.length === 0 ? (
-        <EmptyData msg="No hay anexos registrados. Agrega el primero con 'Nuevo anexo'." />
-      ) : (
+      {filtered.length > 0 ? (
         <div className="overflow-x-auto border rounded-lg bg-white">
           <Table>
             <TableHeader><TableRow>
-              <TableHead>Tipo</TableHead><TableHead>Folio</TableHead><TableHead>Proveedor</TableHead>
-              <TableHead>Fecha</TableHead><TableHead className="text-right">Monto</TableHead><TableHead>Notas</TableHead><TableHead></TableHead>
+              <TableHead>Folio</TableHead><TableHead>Fecha emisión</TableHead><TableHead>Tipo de documento</TableHead>
+              <TableHead>Proveedor</TableHead><TableHead className="text-right">Total bruto</TableHead><TableHead>Tipo de pago</TableHead><TableHead>Estado</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {docs.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell><Badge variant="outline" className="text-xs">{d.tipo}</Badge></TableCell>
-                  <TableCell className="text-xs">{d.folio || '—'}</TableCell>
-                  <TableCell className="text-xs">{d.proveedor || '—'}</TableCell>
-                  <TableCell className="text-xs">{fdate(d.fecha)}</TableCell>
-                  <TableCell className="text-right text-xs font-semibold">{clp(d.monto)}</TableCell>
-                  <TableCell className="text-xs text-gray-500">{d.notas || '—'}</TableCell>
-                  <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => remove(d.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button></TableCell>
+              {filtered.slice(0, 300).map((r, i) => (
+                <TableRow key={i} className="hover:bg-gray-50">
+                  <TableCell className="text-noa-orange-dk font-medium">{r.folio}</TableCell>
+                  <TableCell className="text-xs">{fdate(r.fechaEmision)}</TableCell>
+                  <TableCell className="text-xs">{r.tipoDTEString || ("DTE " + r.tipoDTE)}</TableCell>
+                  <TableCell className="text-xs">{r.razonSocial}<span className="block text-gray-400">{r.rutProveedor}</span></TableCell>
+                  <TableCell className="text-right text-xs font-semibold">{clp(r.montoTotal)}</TableCell>
+                  <TableCell className="text-xs">{r.tipoCompra || "—"}</TableCell>
+                  <TableCell><EstadoBadge estado={r.estado} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
-      )}
-
-      {form && (
-        <Dialog open onOpenChange={() => setForm(null)}>
-          <DialogContent className="font-sans">
-            <DialogHeader><DialogTitle className="font-display text-noa-navy">Nuevo anexo</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div className="space-y-1"><Label>Tipo de documento</Label>
-                <Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1"><Label>Folio</Label><Input value={form.folio} onChange={(e) => setForm((f) => ({ ...f, folio: e.target.value }))} /></div>
-                <div className="space-y-1"><Label>Fecha</Label><Input type="date" value={form.fecha} onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))} /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1"><Label>Proveedor</Label><Input value={form.proveedor} onChange={(e) => setForm((f) => ({ ...f, proveedor: e.target.value }))} /></div>
-                <div className="space-y-1"><Label>Monto</Label><Input type="number" value={form.monto} onChange={(e) => setForm((f) => ({ ...f, monto: e.target.value }))} /></div>
-              </div>
-              <div className="space-y-1"><Label>Notas</Label><Input value={form.notas} onChange={(e) => setForm((f) => ({ ...f, notas: e.target.value }))} /></div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setForm(null)}>Cancelar</Button>
-              <Button className="bg-noa-navy hover:bg-noa-navy-mid" onClick={() => add({ ...form, monto: Number(form.monto) || 0 })}><Check className="w-4 h-4 mr-1.5" /> Guardar</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      ) : !isLoading && (
+        <EmptyData msg="No hay anexos (notas de crédito/débito, guías) en el período seleccionado." />
       )}
     </div>
   );

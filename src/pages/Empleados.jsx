@@ -37,6 +37,7 @@ import TipTrendModal from '@/components/employees/TipTrendModal';
 
 import WaiterPerformanceTab from '@/components/employees/WaiterPerformanceTab';
 import EmployeeDirectoryTab from '@/components/employees/EmployeeDirectoryTab';
+import EquipoTrabajo from '@/components/employees/EquipoTrabajo';
 import EmployeeDetailModal from '@/components/employees/EmployeeDetailModal';
 import PageHeader from '@/components/ui/PageHeader';
 import { startOfYear, endOfDay, isWithinInterval } from 'date-fns';
@@ -313,8 +314,11 @@ export default function Empleados() {
           </motion.div>
         </div>
 
-        <Tabs defaultValue="directorio" className="space-y-4">
+        <Tabs defaultValue="equipo" className="space-y-4">
           <TabsList className="bg-white/80 backdrop-blur-sm shadow-lg border-0 p-1.5 rounded-2xl flex-wrap">
+            <TabsTrigger value="equipo" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+              <Users className="w-4 h-4" /> <span className="hidden sm:inline">Equipo de trabajo</span>
+            </TabsTrigger>
             <TabsTrigger value="directorio" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <ListFilter className="w-4 h-4" /> <span className="hidden sm:inline">Directorio</span>
             </TabsTrigger>
@@ -329,9 +333,14 @@ export default function Empleados() {
             </TabsTrigger>
           </TabsList>
 
+          {/* Tab Equipo de trabajo */}
+          <TabsContent value="equipo">
+            <EquipoTrabajo restaurantId={selectedRestaurant !== 'all' ? selectedRestaurant : (accessibleRestaurants[0]?.id)} />
+          </TabsContent>
+
           {/* Tab Directorio */}
           <TabsContent value="directorio">
-            <EmployeeDirectoryTab 
+            <EmployeeDirectoryTab
               employees={employees} 
               onEmployeeClick={(emp) => setSelectedEmployee(emp)}
               classificationMode={classificationMode}

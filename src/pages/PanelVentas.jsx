@@ -48,12 +48,14 @@ export default function PanelVentas() {
     staleTime: 60 * 1000,
   });
 
+  // Si hay ventas reales sincronizadas de Fudo, esas mandan (datos reales).
+  // Si no, usamos las ventas locales (demo) para que la pantalla no quede vacía.
+  const fudoSales = useMemo(() => (fudoSync.sales || []).filter((s) => !s.is_cancelled), [fudoSync]);
+  const usandoFudo = fudoSales.length > 0;
   const allSales = useMemo(() => {
-    const map = new Map();
-    for (const s of localSales) if (s.id) map.set(`l-${s.id}`, s);
-    for (const s of fudoSync.sales || []) if (!s.is_cancelled) map.set(`f-${s.id}`, s);
-    return [...map.values()];
-  }, [localSales, fudoSync]);
+    if (usandoFudo) return fudoSales;
+    return localSales;
+  }, [usandoFudo, fudoSales, localSales]);
 
   // Filtra por rango
   const sales = useMemo(() => {
@@ -92,7 +94,14 @@ export default function PanelVentas() {
       <Card><CardContent className="pt-6"><div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1"><Label>Desde</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" /></div>
         <div className="space-y-1"><Label>Hasta</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" /></div>
-        {fudoSync.lastSync && <span className="text-xs text-gray-500 ml-auto inline-flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-noa-success" /> Fudo sincronizado: {new Date(fudoSync.lastSync).toLocaleString('es-CL')}</span>}
+        {fudoSync.lastSync && (
+          <span className="text-xs ml-auto inline-flex items-center gap-1.5">
+            {usandoFudo
+              ? <Badge className="bg-noa-success/15 text-noa-success border-0">● Datos reales de Fudo ({fudoSales.length})</Badge>
+              : <Badge variant="outline" className="text-gray-500">Datos demo (sin ventas Fudo en el rango)</Badge>}
+            <span className="text-gray-500 inline-flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-noa-success" /> {new Date(fudoSync.lastSync).toLocaleString('es-CL')}</span>
+          </span>
+        )}
       </div>
       {syncResult && <p className={`text-xs mt-2 ${syncResult.ok ? 'text-noa-success' : 'text-red-600'}`}>{syncResult.message}</p>}
       </CardContent></Card>

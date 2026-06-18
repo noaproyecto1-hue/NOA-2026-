@@ -17,7 +17,43 @@ import { kvGet, kvSet, kvAvailable } from '../_kv.js';
 import { fudoListSales } from '../../server/integrations/fudo.js';
 
 const STATE_KEY = 'fudo:sync:state';
-const ROLLING_DAYS = 60; // Mantiene en KV las ventas de los últimos 60 días
+const ROLLING_DAYS = 90; // Mantiene en KV las ventas de los últimos 90 días
+
+// Mapea una venta de Fudo (api.fu.do/v1alpha1/sales) al modelo de NOA.
+// Campos reales de Fudo: total, saleType (EAT-IN/DELIVERY/TAKEAWAY),
+// saleState (CLOSED/IN-COURSE/PAYMENT-PROCESS/CANCELED), expectedPayments,
+// people, customerName, createdAt, closedAt.
+function mapFudoSale(s) {
+  const a = s.attributes || {};
+  const total = Number(a.total) || 0;
+  const neto = Math.round(total / 1.19);          // IVA Chile 19%
+  const saleType = (a.saleType || '').toUpperCase();
+  const isDelivery = saleType.includes('DELIVERY');
+  // Método de pago desde expectedPayments si viene
+  let paymentMethod = 'Otros';
+  if (Array.isArray(a.expectedPayments) && a.expectedPayments.length) {
+    paymentMethod = a.expectedPayments[0]?.paymentMethod || a.expectedPayments[0]?.name || 'Otros';
+  }
+  return {
+    id: `fudo-${s.id}`,
+    external_source: 'fudo',
+    date_time: a.closedAt || a.createdAt,
+    total_amount: total,
+    subtotal_amount: neto,
+    tax_amount: total - neto,
+    tip_amount: 0,
+    discount_amount: 0,
+    payment_method: paymentMethod,
+    is_delivery: isDelivery,
+    origin: isDelivery ? 'Delivery' : (saleType === 'TAKEAWAY' ? 'Para llevar' : 'Mesa'),
+    sale_type: a.saleType || '',
+    sale_state: a.saleState || '',
+    customer_name: a.customerName || '',
+    people: a.people || 0,
+    // Solo las CLOSED son ventas completadas (pagadas). El resto son tabs abiertas.
+    is_cancelled: a.saleState === 'CANCELED' || a.saleState !== 'CLOSED',
+  };
+}
 
 export default async function handler(req, res) {
   // Verificación de auth (cron secret) — opcional pero recomendado en producción.
@@ -47,32 +83,17 @@ export default async function handler(req, res) {
 
     // 3) Determinar rango: desde la última sincronización (o 7 días atrás) hasta hoy
     const now = new Date();
-    const since = previous.lastSync ? new Date(previous.lastSync) : new Date(now.getTime() - 7 * 86400_000);
+    // Primera sincronización: trae 90 días. Las siguientes: desde 1 día antes
+    // de la última (margen para ventas que cerraron tarde).
+    const since = previous.lastSync
+      ? new Date(new Date(previous.lastSync).getTime() - 86400_000)
+      : new Date(now.getTime() - 90 * 86400_000);
     const dateFrom = since.toISOString().slice(0, 10);
     const dateTo = now.toISOString().slice(0, 10);
 
-    // 4) Pull desde Fudo (varias páginas si hace falta)
-    const allNew = [];
-    let page = 1;
-    while (page <= 20) {
-      const resp = await fudoListSales({ ...fudoCfg, dateFrom, dateTo, page, pageSize: 500 });
-      const items = (resp?.data || []).map((s) => ({
-        id: s.id,
-        external_source: 'fudo',
-        date_time: s.attributes?.createdAt || s.attributes?.date,
-        total_amount: Number(s.attributes?.total) || 0,
-        subtotal_amount: Number(s.attributes?.subtotal) || 0,
-        tax_amount: Number(s.attributes?.tax) || 0,
-        tip_amount: Number(s.attributes?.tip) || 0,
-        discount_amount: Number(s.attributes?.discount) || 0,
-        payment_method: s.attributes?.paymentMethod || 'Otros',
-        is_cancelled: Boolean(s.attributes?.cancelled),
-      }));
-      if (items.length === 0) break;
-      allNew.push(...items);
-      if (items.length < 500) break;
-      page += 1;
-    }
+    // 4) Pull desde Fudo (el cliente pagina y filtra por rango internamente)
+    const resp = await fudoListSales({ ...fudoCfg, dateFrom, dateTo, maxPages: 40 });
+    const allNew = (resp?.data || []).map((s) => mapFudoSale(s));
 
     // 5) Merge: dedupe por id, mantener rolling window
     const cutoff = new Date(now.getTime() - ROLLING_DAYS * 86400_000).toISOString();

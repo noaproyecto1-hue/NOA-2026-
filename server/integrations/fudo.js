@@ -99,19 +99,47 @@ export async function fudoListProducts(opts = {}) {
   return data;
 }
 
+// Lista ventas de Fudo. La API no soporta filtro por fecha en el query
+// (solo sort por id/createdAt/closedAt), así que ordenamos por -createdAt y
+// filtramos por rango en el servidor. Paginamos hasta cubrir el rango pedido.
 export async function fudoListSales(opts = {}) {
   const entry = await getToken(opts);
-  const params = new URLSearchParams();
-  if (opts.dateFrom) params.set('filter[date_from]', opts.dateFrom);
-  if (opts.dateTo) params.set('filter[date_to]', opts.dateTo);
-  params.set('page[number]', String(opts.page || 1));
-  params.set('page[size]', String(opts.pageSize || 500));
-  const res = await fetch(`${API_BASE}/sales?${params}`, {
-    headers: { ...authHeader(entry), Accept: 'application/json' },
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.errors?.[0]?.detail || `Fudo sales ${res.status}`);
-  return data;
+  const dateFrom = opts.dateFrom ? new Date(opts.dateFrom + 'T00:00:00Z') : null;
+  const dateTo = opts.dateTo ? new Date(opts.dateTo + 'T23:59:59Z') : null;
+
+  // Si piden una sola página puntual (sin rango), devolvemos esa página tal cual.
+  if (opts.page && !opts.dateFrom && !opts.dateTo) {
+    const res = await fetch(`${API_BASE}/sales?sort=-createdAt&page[number]=${opts.page}&page[size]=${opts.pageSize || 500}`, {
+      headers: { ...authHeader(entry), Accept: 'application/json' },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.errors?.[0]?.detail || `Fudo sales ${res.status}`);
+    return data;
+  }
+
+  // Modo rango: paginamos desde la más reciente hacia atrás hasta pasar dateFrom.
+  const all = [];
+  const maxPages = opts.maxPages || 40;
+  for (let page = 1; page <= maxPages; page++) {
+    const res = await fetch(`${API_BASE}/sales?sort=-createdAt&page[number]=${page}&page[size]=500`, {
+      headers: { ...authHeader(entry), Accept: 'application/json' },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.errors?.[0]?.detail || `Fudo sales ${res.status}`);
+    const items = data.data || [];
+    if (items.length === 0) break;
+
+    let reachedOlder = false;
+    for (const s of items) {
+      const created = new Date(s.attributes?.createdAt || s.attributes?.closedAt || 0);
+      if (dateTo && created > dateTo) continue;
+      if (dateFrom && created < dateFrom) { reachedOlder = true; continue; }
+      all.push(s);
+    }
+    if (reachedOlder) break;          // ya pasamos el inicio del rango
+    if (items.length < 500) break;    // no hay más páginas
+  }
+  return { data: all };
 }
 
 // Stub mantenido por compatibilidad con la UI — la creación de órdenes vía

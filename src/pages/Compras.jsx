@@ -100,8 +100,18 @@ function PorFamilia({ rid }) {
     },
     enabled: true, staleTime: 2 * 60 * 1000,
   });
+  // Costos operacionales (OpEx) → familias Administración, Operaciones, etc.
+  const { data: opex = [] } = useQuery({
+    queryKey: ['compras-familia-opex', rid],
+    queryFn: async () => {
+      const all = rid ? await base44.entities.OpEx.filter({ restaurant_id: rid }) : await base44.entities.OpEx.list();
+      return all || [];
+    },
+    enabled: true, staleTime: 2 * 60 * 1000,
+  });
 
   const [expanded, setExpanded] = useState({});
+  const [detail, setDetail] = useState(null); // { kind:'insumo'|'opex'|'proveedor', name }
 
   // Últimos 6 meses del año actual hasta el mes vigente
   const now = new Date();
@@ -137,14 +147,44 @@ function PorFamilia({ rid }) {
       if (!fam[famName].items[itemName]) fam[famName].items[itemName] = { name: itemName, byMonth: {} };
       fam[famName].items[itemName].byMonth[m] = (fam[famName].items[itemName].byMonth[m] || 0) + amount;
     }
+    // OpEx → familias por centro de costo (Administración, Operaciones, etc.)
+    const TYPE_TO_FAM = {
+      payroll: 'RRHH', rent: 'Renta', utilities: 'Operaciones', insurance: 'Operaciones',
+      maintenance: 'Administración', licenses: 'Administración', technology: 'Administración',
+      marketing: 'Marketing', other: 'Operaciones',
+    };
+    const normCenter = (o) => {
+      const c = (o.cost_center_name || '').toUpperCase();
+      if (c.includes('ADMIN')) return 'Administración';
+      if (c.includes('OPERAC') || c.includes('GASTOS FIJOS')) return 'Operaciones';
+      if (c.includes('RRHH') || c.includes('PAYROLL')) return 'RRHH';
+      if (c.includes('RENTA') || c.includes('REAL STATE')) return 'Renta';
+      if (c.includes('MARKETING')) return 'Marketing';
+      return TYPE_TO_FAM[o.type] || 'Operaciones';
+    };
+    for (const o of opex) {
+      const d = new Date(o.date);
+      if (d.getFullYear() !== year) continue;
+      const m = d.getMonth();
+      const famName = normCenter(o);
+      const itemName = o.description || o.type || 'Gasto';
+      const amount = Number(o.amount) || 0;
+      if (!fam[famName]) fam[famName] = { name: famName, byMonth: {}, items: {}, kind: 'opex' };
+      fam[famName].kind = 'opex';
+      fam[famName].byMonth[m] = (fam[famName].byMonth[m] || 0) + amount;
+      if (!fam[famName].items[itemName]) fam[famName].items[itemName] = { name: itemName, byMonth: {} };
+      fam[famName].items[itemName].byMonth[m] = (fam[famName].items[itemName].byMonth[m] || 0) + amount;
+    }
+
     // Total por familia para ordenar
     return Object.values(fam).map((f) => ({
       ...f,
+      kind: f.kind || 'insumo',
       total: Object.values(f.byMonth).reduce((a, b) => a + b, 0),
       itemsList: Object.values(f.items).sort((a, b) =>
         Object.values(b.byMonth).reduce((x, y) => x + y, 0) - Object.values(a.byMonth).reduce((x, y) => x + y, 0)),
     })).sort((a, b) => b.total - a.total);
-  }, [costs, year]);
+  }, [costs, opex, year]);
 
   // Determina color de celda según % sobre venta vs promedio de la familia
   function cellColor(famPctList, pct, monthIdx) {
@@ -163,8 +203,8 @@ function PorFamilia({ rid }) {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-noa-navy font-display">Compras por familia de insumos</h2>
-        <p className="text-sm text-gray-500">Gasto mensual y % sobre venta · {year}</p>
+        <h2 className="text-lg font-semibold text-noa-navy font-display">Compras por familia</h2>
+        <p className="text-sm text-gray-500">Insumos y costos operacionales (Administración, Operaciones…). Gasto mensual y % sobre venta · {year}. Pincha una familia → un insumo → su proveedor.</p>
       </div>
 
       <div className="overflow-x-auto border rounded-lg bg-white">
@@ -205,8 +245,12 @@ function PorFamilia({ rid }) {
                     })}
                   </TableRow>
                   {isOpen && f.itemsList.map((it) => (
-                    <TableRow key={`${f.name}-${it.name}`} className="bg-gray-50/50">
-                      <TableCell className="pl-10 text-xs text-gray-700">{it.name}</TableCell>
+                    <TableRow key={`${f.name}-${it.name}`} className="bg-gray-50/50 hover:bg-noa-orange/5">
+                      <TableCell className="pl-10 text-xs">
+                        <button className="text-noa-orange-dk hover:underline inline-flex items-center gap-1" onClick={() => setDetail({ kind: f.kind, name: it.name })}>
+                          {it.name} <ChevronRight className="w-3 h-3 text-gray-300" />
+                        </button>
+                      </TableCell>
                       {monthsCols.map((m) => {
                         const amount = it.byMonth[m] || 0;
                         const pct = salesByMonth[m] ? amount / salesByMonth[m] * 100 : 0;
@@ -233,7 +277,134 @@ function PorFamilia({ rid }) {
         <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-600" /> alerta de costo</span>
         <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-noa-info" /> mes actual</span>
       </div>
+
+      {detail?.kind !== 'proveedor' && detail && (
+        <ItemComprasModal item={detail} rid={rid} onClose={() => setDetail(null)} onProveedor={(prov) => setDetail({ kind: 'proveedor', name: prov })} />
+      )}
+      {detail?.kind === 'proveedor' && (
+        <ProveedorComprasModal proveedor={detail.name} rid={rid} onClose={() => setDetail(null)} />
+      )}
     </div>
+  );
+}
+
+// Modal de detalle de un insumo o gasto: facturas, proveedores y montos.
+function ItemComprasModal({ item, rid, onClose, onProveedor }) {
+  const { kind, name } = item;
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['compras-item-detail', kind, name, rid],
+    queryFn: async () => {
+      if (kind === 'opex') {
+        const all = rid ? await base44.entities.OpEx.filter({ restaurant_id: rid }) : await base44.entities.OpEx.list();
+        return (all || []).filter((o) => (o.description || o.type || 'Gasto') === name);
+      }
+      const all = rid ? await base44.entities.SupplyCost.filter({ restaurant_id: rid }) : await base44.entities.SupplyCost.list();
+      return (all || []).filter((c) => (c.supply_item_name || c.supply_name) === name);
+    },
+    enabled: true, staleTime: 60 * 1000,
+  });
+  const total = rows.reduce((s, r) => s + (Number(r.total_cost) || Number(r.amount) || 0), 0);
+  const proveedores = [...new Set(rows.map((r) => r.supplier).filter(Boolean))];
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl font-sans">
+        <DialogHeader><DialogTitle className="font-display text-noa-navy flex items-center gap-2"><FileText className="w-5 h-5 text-noa-orange" /> {name}</DialogTitle></DialogHeader>
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-gray-500 py-8 justify-center"><Loader2 className="w-5 h-5 animate-spin" /> Cargando…</div>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-gray-500 py-8 text-center">Sin facturas registradas para "{name}".</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              <MiniStat label="Documentos" value={rows.length} />
+              <MiniStat label="Proveedores" value={proveedores.length || '—'} />
+              <MiniStat label="Total" value={clp(total)} highlight />
+            </div>
+            {proveedores.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs text-gray-500">Proveedores:</span>
+                {proveedores.map((p) => (
+                  <button key={p} className="text-xs text-noa-navy hover:underline bg-noa-navy/5 rounded px-2 py-0.5" onClick={() => onProveedor(p)}>{p} ›</button>
+                ))}
+              </div>
+            )}
+            <div className="max-h-80 overflow-y-auto border rounded-lg">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>Fecha</TableHead><TableHead>Proveedor</TableHead><TableHead>Folio</TableHead>
+                  <TableHead className="text-right">Cantidad</TableHead><TableHead className="text-right">Monto</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {[...rows].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-xs">{fdate(r.date)}</TableCell>
+                      <TableCell className="text-xs">{r.supplier ? <button className="text-noa-navy hover:underline" onClick={() => onProveedor(r.supplier)}>{r.supplier}</button> : (r.cost_center_name || '—')}</TableCell>
+                      <TableCell className="text-xs">{r.invoice_number || '—'}</TableCell>
+                      <TableCell className="text-right text-xs">{r.quantity_purchased ? `${r.quantity_purchased} ${r.unit_of_measure || ''}` : '—'}</TableCell>
+                      <TableCell className="text-right text-xs font-semibold">{clp(r.total_cost || r.amount)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Modal de detalle de un proveedor: todo lo que nos ha vendido (datos SII).
+function ProveedorComprasModal({ proveedor, rid, onClose }) {
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['compras-prov-detail', proveedor, rid],
+    queryFn: async () => {
+      const all = rid ? await base44.entities.SupplyCost.filter({ restaurant_id: rid }) : await base44.entities.SupplyCost.list();
+      return (all || []).filter((c) => c.supplier === proveedor);
+    },
+    enabled: true, staleTime: 60 * 1000,
+  });
+  const total = rows.reduce((s, r) => s + (Number(r.total_cost) || 0), 0);
+  const taxId = rows.find((r) => r.supplier_tax_id)?.supplier_tax_id;
+  const items = [...new Set(rows.map((r) => r.supply_item_name || r.supply_name).filter(Boolean))];
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl font-sans">
+        <DialogHeader><DialogTitle className="font-display text-noa-navy flex items-center gap-2"><Building2 className="w-5 h-5 text-noa-orange" /> {proveedor}</DialogTitle></DialogHeader>
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-gray-500 py-8 justify-center"><Loader2 className="w-5 h-5 animate-spin" /> Cargando…</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              <MiniStat label="RUT" value={taxId || '—'} />
+              <MiniStat label="Facturas / Insumos" value={`${rows.length} / ${items.length}`} />
+              <MiniStat label="Total comprado" value={clp(total)} highlight />
+            </div>
+            <div className="max-h-80 overflow-y-auto border rounded-lg">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>Fecha</TableHead><TableHead>Insumo</TableHead><TableHead>Folio</TableHead>
+                  <TableHead className="text-right">Cantidad</TableHead><TableHead className="text-right">Monto</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {[...rows].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-xs">{fdate(r.date)}</TableCell>
+                      <TableCell className="text-xs">{r.supply_item_name || r.supply_name || '—'}</TableCell>
+                      <TableCell className="text-xs">{r.invoice_number || '—'}</TableCell>
+                      <TableCell className="text-right text-xs">{r.quantity_purchased ? `${r.quantity_purchased} ${r.unit_of_measure || ''}` : '—'}</TableCell>
+                      <TableCell className="text-right text-xs font-semibold">{clp(r.total_cost)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 

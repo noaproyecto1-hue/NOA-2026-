@@ -886,6 +886,7 @@ function PorInsumos({ rid }) {
 function PorProveedor({ rid }) {
   const { data: costs = [], isLoading } = useComprasCosts(rid);
   const [search, setSearch] = useState('');
+  const [sel, setSel] = useState(null);
 
   const provs = useMemo(() => {
     const map = {};
@@ -924,8 +925,10 @@ function PorProveedor({ rid }) {
           </TableRow></TableHeader>
           <TableBody>
             {filtered.map((p) => (
-              <TableRow key={p.name} className="hover:bg-gray-50">
-                <TableCell className="font-medium text-noa-navy">{p.name}</TableCell>
+              <TableRow key={p.name} className="hover:bg-noa-orange/5 cursor-pointer" onClick={() => setSel(p.name)}>
+                <TableCell className="font-medium">
+                  <span className="text-noa-orange-dk hover:underline inline-flex items-center gap-1">{p.name} <ChevronRight className="w-3 h-3 text-gray-300" /></span>
+                </TableCell>
                 <TableCell className="text-xs">{p.taxId || '—'}</TableCell>
                 <TableCell className="text-right text-xs">{p.compras}</TableCell>
                 <TableCell className="text-right text-xs">{p.items}</TableCell>
@@ -936,6 +939,7 @@ function PorProveedor({ rid }) {
           </TableBody>
         </Table>
       </div>
+      {sel && <ProveedorComprasModal proveedor={sel} rid={rid} onClose={() => setSel(null)} />}
     </div>
   );
 }
@@ -959,7 +963,8 @@ function Anexos() {
   const rows = useMemo(() => {
     const all = [];
     queries.forEach((q) => (q.data?.data?.compras?.detalleCompras || []).forEach((d) => {
-      if (![33, 34].includes(Number(d.tipoDTE))) all.push(d);
+      // Excluir todas las facturas: 33 electrónica, 34 exenta, 46 de compra
+      if (![33, 34, 46].includes(Number(d.tipoDTE))) all.push(d);
     }));
     return all.sort((a, b) => (b.fechaEmision || "").localeCompare(a.fechaEmision || ""));
   }, [queries]);

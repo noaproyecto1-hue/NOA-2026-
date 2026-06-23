@@ -179,8 +179,10 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
 
   return (
     <div className="space-y-6 font-sans">
+      {/* Fila superior: Venta Neta del día + Eficiencia Global */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Venta Neta del día (datos reales de Fudo) con barra de color vs meta diaria */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden lg:col-span-2">
         <CardContent className="pt-5">
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
@@ -212,6 +214,14 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
           </div>
         </CardContent>
       </Card>
+
+      {/* Eficiencia Global (arriba) */}
+      <Card><CardContent className="pt-6 flex flex-col items-center justify-center h-full">
+        <Donut value={eficiencia} label="" color="#2563EB" size={140} />
+        <p className="text-sm font-bold text-noa-navy mt-2 font-display">EFICIENCIA GLOBAL</p>
+        <p className="text-xs text-gray-500 text-center">Rendimiento del restaurante</p>
+      </CardContent></Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Columna izquierda: VENTA / COMPRA / UTILIDAD */}
@@ -266,22 +276,14 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
       </div>
 
       {/* KPIs strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <KpiStrip value={clp(M.ventaDiaProm)} label="Promedio venta / día" color="text-noa-info" />
         <KpiStrip value={pct(M.ratioCompraVenta)} label="Ratio compra / venta" color="text-green-600" />
-        <KpiStrip value={pct(M.opexSobreVenta)} label="OPEX / venta" color="text-noa-orange-dk" />
-        <KpiStrip value={pct(M.margenNeto)} label="Margen neto estimado" color="text-noa-orange-dk" />
       </div>
 
-      {/* Eficiencia + Alertas de precio */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card><CardContent className="pt-6 flex flex-col items-center justify-center">
-          <Donut value={eficiencia} label="" color="#2563EB" size={150} />
-          <p className="text-sm font-bold text-noa-navy mt-2 font-display">EFICIENCIA GLOBAL</p>
-          <p className="text-xs text-gray-500">Rendimiento del restaurante</p>
-        </CardContent></Card>
-
-        <Card className="lg:col-span-2"><CardContent className="pt-6">
+      {/* Alertas de precio */}
+      <div className="grid grid-cols-1 gap-6">
+        <Card><CardContent className="pt-6">
           <p className="text-sm font-semibold text-noa-navy flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-noa-orange" /> ALERTAS DE PRECIO — ÚLTIMA COMPRA</p>
           <p className="text-[11px] text-gray-500 mb-4">Insumos ordenados de mayor a menor alza · vs compra anterior</p>
           {priceAlerts.length === 0 ? (

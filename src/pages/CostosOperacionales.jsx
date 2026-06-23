@@ -18,6 +18,17 @@ function fdate(v) { if (!v) return ''; const d = new Date(v); return Number.isNa
 
 // Centros de costo / familias de OpEx
 const CENTROS = ['PAYROLL/RRHH', 'REAL STATE/RENTA', 'GASTOS FIJOS', 'ADMINISTRACIÓN', 'MARKETING', 'OTROS'];
+
+// Colores corporativos NOA + paleta de apoyo por centro de costo
+function CENTER_COLOR(name) {
+  const n = (name || '').toUpperCase();
+  if (n.includes('RRHH') || n.includes('PAYROLL')) return '#0C1B33'; // navy
+  if (n.includes('RENTA') || n.includes('REAL STATE')) return '#F59E0B'; // naranja firma
+  if (n.includes('GASTOS FIJOS') || n.includes('OPERAC')) return '#0EA5E9'; // info
+  if (n.includes('ADMIN')) return '#16A34A'; // success
+  if (n.includes('MARKETING')) return '#EC4899'; // rosa
+  return '#64748B'; // slate
+}
 const TYPE_TO_CENTER = {
   payroll: 'PAYROLL/RRHH', rent: 'REAL STATE/RENTA', utilities: 'GASTOS FIJOS', insurance: 'GASTOS FIJOS',
   maintenance: 'ADMINISTRACIÓN', licenses: 'ADMINISTRACIÓN', technology: 'ADMINISTRACIÓN', marketing: 'MARKETING', other: 'OTROS',
@@ -119,18 +130,20 @@ export default function CostosOperacionales() {
               {grupos.map((g) => {
                 const isOpen = expanded[g.name];
                 const pctVenta = ventaMes > 0 ? g.total / ventaMes * 100 : 0;
+                const color = CENTER_COLOR(g.name);
                 return (
                   <React.Fragment key={g.name}>
-                    <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => setExpanded((e) => ({ ...e, [g.name]: !e[g.name] }))}>
-                      <TableCell className="font-medium text-noa-navy">
-                        <span className="inline-flex items-center gap-1.5">
-                          {isOpen ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+                    <TableRow className="cursor-pointer transition-colors" style={{ background: isOpen ? `${color}10` : undefined }} onClick={() => setExpanded((e) => ({ ...e, [g.name]: !e[g.name] }))}>
+                      <TableCell className="font-medium" style={{ borderLeft: `4px solid ${color}` }}>
+                        <span className="inline-flex items-center gap-1.5 text-noa-navy">
+                          {isOpen ? <ChevronDown className="w-4 h-4" style={{ color }} /> : <ChevronRight className="w-4 h-4" style={{ color }} />}
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
                           {g.name} <span className="text-gray-400 text-xs">({g.entries.length})</span>
                         </span>
                       </TableCell>
                       <TableCell className="text-right text-xs">{g.entries.length}</TableCell>
-                      <TableCell className="text-right text-xs">{pctVenta.toFixed(1)}%</TableCell>
-                      <TableCell className="text-right text-xs font-semibold">{clp(g.total)}</TableCell>
+                      <TableCell className="text-right text-xs font-semibold" style={{ color }}>{pctVenta.toFixed(1)}%</TableCell>
+                      <TableCell className="text-right text-xs font-bold" style={{ color }}>{clp(g.total)}</TableCell>
                     </TableRow>
                     {isOpen && g.entries.sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((o) => (
                       <TableRow key={o.id} className="bg-gray-50/50">

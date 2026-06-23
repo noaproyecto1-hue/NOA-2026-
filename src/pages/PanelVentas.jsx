@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,7 +12,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, Receipt, Percent, DollarSign, Coins, BarChart3, Loader2,
-  RefreshCw, CheckCircle2,
+  RefreshCw, CheckCircle2, Users, Download,
 } from 'lucide-react';
 
 function clp(n) { return (Number(n) || 0).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }); }
@@ -76,18 +76,67 @@ export default function PanelVentas() {
     } catch (err) { setSyncResult({ ok: false, message: err.message }); } finally { setSyncing(false); }
   }
 
+  const reportRef = useRef(null);
+  const [exporting, setExporting] = useState(false);
+
+  async function exportPDF() {
+    if (!reportRef.current) return;
+    setExporting(true);
+    try {
+      const [{ default: html2canvas }, jspdfMod] = await Promise.all([import('html2canvas'), import('jspdf')]);
+      const JsPDF = jspdfMod.default || jspdfMod.jsPDF;
+      const canvas = await html2canvas(reportRef.current, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      const img = canvas.toDataURL('image/png');
+      const pdf = new JsPDF('p', 'mm', 'a4');
+      const pw = pdf.internal.pageSize.getWidth();
+      const ph = pdf.internal.pageSize.getHeight();
+      const imgW = pw - 16;
+      const imgH = (canvas.height * imgW) / canvas.width;
+      // Encabezado
+      pdf.setFontSize(14); pdf.setTextColor(12, 27, 51);
+      pdf.text('NOA — Informe de Ventas', 8, 12);
+      pdf.setFontSize(9); pdf.setTextColor(120, 120, 120);
+      pdf.text(`Período: ${from} a ${to}  ·  Generado: ${new Date().toLocaleString('es-CL')}`, 8, 18);
+      // Imagen del panel, paginada si es muy alta
+      let y = 22, remaining = imgH, sy = 0;
+      const pageImgH = ph - y - 8;
+      if (imgH <= pageImgH) {
+        pdf.addImage(img, 'PNG', 8, y, imgW, imgH);
+      } else {
+        // Recorta el canvas por páginas
+        const ratio = canvas.width / imgW;
+        let drawn = 0;
+        while (drawn < canvas.height) {
+          const sliceH = Math.min(canvas.height - drawn, pageImgH * ratio);
+          const c2 = document.createElement('canvas');
+          c2.width = canvas.width; c2.height = sliceH;
+          c2.getContext('2d').drawImage(canvas, 0, drawn, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+          if (drawn > 0) { pdf.addPage(); y = 8; }
+          pdf.addImage(c2.toDataURL('image/png'), 'PNG', 8, y, imgW, sliceH / ratio);
+          drawn += sliceH;
+        }
+      }
+      pdf.save(`informe_ventas_${from}_${to}.pdf`);
+    } catch (e) { alert('No se pudo generar el PDF: ' + e.message); } finally { setExporting(false); }
+  }
+
   if (isLoading) return <div className="p-6 flex items-center gap-2 text-gray-500"><Loader2 className="w-5 h-5 animate-spin" /> Cargando ventas…</div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
+    <div ref={reportRef} className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-noa-navy flex items-center gap-2 font-display"><BarChart3 className="w-6 h-6 text-noa-orange" /> Ventas</h1>
           <p className="text-gray-600 mt-1">Panel de ventas: evolución, días, horas, medios de pago y canales.</p>
         </div>
-        <Button onClick={syncNow} disabled={syncing} className="bg-noa-navy hover:bg-noa-navy-mid">
-          {syncing ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}{syncing ? 'Sincronizando…' : 'Sincronizar Fudo'}
-        </Button>
+        <div className="flex gap-2" data-html2canvas-ignore="true">
+          <Button onClick={exportPDF} disabled={exporting} variant="outline">
+            {exporting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5" />}{exporting ? 'Generando…' : 'Descargar PDF'}
+          </Button>
+          <Button onClick={syncNow} disabled={syncing} className="bg-noa-navy hover:bg-noa-navy-mid">
+            {syncing ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}{syncing ? 'Sincronizando…' : 'Sincronizar Fudo'}
+          </Button>
+        </div>
       </div>
 
       {/* Filtro fechas */}
@@ -117,9 +166,9 @@ export default function PanelVentas() {
           {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <Kpi icon={DollarSign} label="Total ventas brutas" value={clpK(stats.bruto)} />
-            <Kpi icon={TrendingUp} label="Total ventas netas" value={clpK(stats.neto)} />
-            <Kpi icon={Coins} label="Descuentos" value={clpK(-stats.descuentos)} />
-            <Kpi icon={Receipt} label="Cantidad de ventas" value={stats.count.toLocaleString('es-CL')} />
+            <Kpi icon={Receipt} label="Ticket promedio (por persona)" value={clp(stats.ticketPromedio)} />
+            <Kpi icon={Users} label="Personas" value={stats.personas.toLocaleString('es-CL')} />
+            <Kpi icon={Coins} label="Cantidad de ventas" value={stats.count.toLocaleString('es-CL')} />
             <Kpi icon={Percent} label="Promedio por venta" value={clp(stats.promedio)} highlight />
           </div>
 
@@ -204,7 +253,7 @@ function HBarCard({ title, data, color, empty }) {
 }
 
 function computeStats(sales) {
-  let bruto = 0, neto = 0, descuentos = 0;
+  let bruto = 0, neto = 0, descuentos = 0, personas = 0;
   const byDayMap = {}, byDow = Array(7).fill(0), byHour = Array(24).fill(0), byPay = {}, byOrigin = {}, byChannel = {};
 
   for (const s of sales) {
@@ -212,6 +261,8 @@ function computeStats(sales) {
     bruto += amt;
     neto += Number(s.subtotal_amount) || (amt - (Number(s.tax_amount) || 0));
     descuentos += Number(s.discount_amount) || 0;
+    // Personas/comensales: Fudo usa "people", demo usa "guests". Si no hay, asume 1.
+    personas += Number(s.people) || Number(s.guests) || (amt > 0 ? 1 : 0);
     const d = new Date(s.date_time);
     if (!Number.isNaN(d.getTime())) {
       const k = d.toISOString().slice(0, 10);
@@ -232,7 +283,9 @@ function computeStats(sales) {
   });
   const count = sales.length;
   return {
-    bruto, neto, descuentos, count, promedio: count ? bruto / count : 0,
+    bruto, neto, descuentos, count, personas,
+    promedio: count ? bruto / count : 0,
+    ticketPromedio: personas ? bruto / personas : 0,
     byDay,
     byDow: byDow.map((total, i) => ({ label: DOW[i], total })),
     byHour: byHour.map((total, i) => ({ label: `${i}h`, total })).filter((x) => x.total > 0),

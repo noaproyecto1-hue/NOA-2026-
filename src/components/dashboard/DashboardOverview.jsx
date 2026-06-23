@@ -71,6 +71,24 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
     enabled: true, staleTime: 2 * 60 * 1000,
   });
 
+  // Ventas reales de Fudo (cache KV) para la Venta Neta del día
+  const { data: fudoSync = { sales: [] } } = useQuery({
+    queryKey: ['overview-fudo-sync'],
+    queryFn: async () => { const r = await fetch('/__fudo/sync-pull'); return r.ok ? await r.json() : { sales: [] }; },
+    staleTime: 60 * 1000,
+  });
+
+  // Venta neta de HOY desde Fudo (CLOSED). Neto = total / 1.19 (IVA Chile).
+  const ventaNetaHoy = useMemo(() => {
+    const ventas = (fudoSync.sales || []).filter((s) => !s.is_cancelled && (s.date_time || '').slice(0, 10) === today);
+    const bruto = ventas.reduce((a, s) => a + (Number(s.total_amount) || 0), 0);
+    return { neto: Math.round(bruto / 1.19), bruto, count: ventas.length, hasFudo: (fudoSync.sales || []).length > 0 };
+  }, [fudoSync, today]);
+
+  const META_DIARIA = 1000000;
+  const ventaColor = ventaNetaHoy.neto >= META_DIARIA ? '#16A34A' : ventaNetaHoy.neto >= 700000 ? '#F59E0B' : '#DC2626';
+  const ventaPct = Math.min(100, ventaNetaHoy.neto / META_DIARIA * 100);
+
   const M = useMemo(() => {
     const saleDay = (s) => { try { return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(s.date_time)); } catch { return ''; } };
     // Ventas (bruto)
@@ -161,6 +179,40 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
 
   return (
     <div className="space-y-6 font-sans">
+      {/* Venta Neta del día (datos reales de Fudo) con barra de color vs meta diaria */}
+      <Card className="overflow-hidden">
+        <CardContent className="pt-5">
+          <div className="flex items-start justify-between flex-wrap gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-gray-600">Venta Neta — Hoy</p>
+                {ventaNetaHoy.hasFudo
+                  ? <span className="text-[10px] font-semibold text-noa-success bg-noa-success/15 rounded-full px-2 py-0.5">● Fudo en vivo</span>
+                  : <span className="text-[10px] text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">sin datos Fudo</span>}
+              </div>
+              <p className="text-3xl font-bold font-display mt-1" style={{ color: ventaColor }}>{clp(ventaNetaHoy.neto)}</p>
+              <p className="text-xs text-gray-500 mt-1">{ventaNetaHoy.count} ventas cerradas · bruto {clp(ventaNetaHoy.bruto)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-500">Meta diaria</p>
+              <p className="text-lg font-bold text-noa-navy">{clp(META_DIARIA)}</p>
+              <p className="text-xs font-semibold mt-0.5" style={{ color: ventaColor }}>{ventaPct.toFixed(0)}% de la meta</p>
+            </div>
+          </div>
+          {/* Barra de color: rojo <700k · amarillo 700k-1M · verde >1M */}
+          <div className="mt-4">
+            <div className="h-4 rounded-full bg-gray-100 overflow-hidden relative">
+              <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(2, ventaPct)}%`, backgroundColor: ventaColor }} />
+              {/* marcas 70% y 100% */}
+              <div className="absolute top-0 bottom-0" style={{ left: '70%', width: '1px', background: 'rgba(0,0,0,.15)' }} />
+            </div>
+            <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+              <span>$0</span><span>$700K</span><span>$1M</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Columna izquierda: VENTA / COMPRA / UTILIDAD */}
         <div className="lg:col-span-2 space-y-5">

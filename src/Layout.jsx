@@ -407,10 +407,6 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Main Content */}
       <main className="lg:ml-72 min-h-screen pt-16 lg:pt-0">
-        {/* Barra de búsqueda global (desktop) */}
-        <div className="hidden lg:flex sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200 px-6 py-3 justify-center">
-          <GlobalSearch />
-        </div>
         {children}
       </main>
 

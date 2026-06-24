@@ -90,7 +90,7 @@ export default function SuperadminProfile() {
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
             style={{ backgroundImage: `url(https://images.unsplash.com/photo-1557426272-fc759fdf7a8d?w=1920&q=80)` }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-indigo-900/90 to-purple-900/85" />
+          <div className="absolute inset-0" style={{ background: 'rgba(12, 27, 51, 0.72)' }} />
           <div className="absolute inset-0 opacity-20">
             <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white rounded-full animate-pulse" />
             <div className="absolute bottom-1/3 right-1/4 w-1.5 h-1.5 bg-white rounded-full animate-pulse delay-200" />

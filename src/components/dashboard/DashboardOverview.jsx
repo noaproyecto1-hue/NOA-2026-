@@ -17,13 +17,15 @@ function loadDashCfg() {
   } catch { return { utilPct: 15, metaMensual: 10000000, costoDirectoBM: 30 }; }
 }
 
-// ── MODO PRESENTACIÓN — Dataset demo "Casa Mediterránea" (coherente con el informe) ──
+// ── MODO PRESENTACIÓN — Dataset demo "Casa Mediterránea" (CAMBIOS_REV4) ──
 // Números fijos día 26/30. Coherencia: 61.100.000 − 19.552.000 − 16.191.500 − 17.719.000 = 7.637.500 ✓
-// NOA Score ahora deriva de la utilidad (12.5% → 87.5 → Favorable) según Prompt 1.
+// NOA Score del demo = 76 · Atención (fórmula ponderada OPEX/Food/Labor/Tendencia del PDF
+// de presentación). Fuera de DEMO_MODE el score se deriva de la utilidad EBITDA (Prompt 1).
 const DEMO_MODE = true;
 const DEMO_CASA = {
   periodo: 'Junio 2026 · Día 26 de 30',
   diasAcum: 26, diasMes: 30,
+  noaScore: 76, noaZona: 'atencion',
   metaMensual: 70000000, metaDiaria: 2333333, utilPct: 15,
   ventaHoy: 2618132, ventaBrutoHoy: 2618132, ventaNetoHoy: 2200111,
   ventaAcum: 61100000, ventaProj: 70500000, ventaDiaProm: 2350000,
@@ -222,9 +224,10 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
     margenHoy: DEMO_CASA.margenHoy, margenNeto: DEMO_CASA.margenNeto, margenProj: DEMO_CASA.margenProj,
   } : M;
 
-  // NOA Score desde la utilidad (Prompt 1)
+  // NOA Score: en demo se fija a 76/Atención (CAMBIOS_REV4); fuera de demo deriva de la utilidad (Prompt 1).
   const noa = useMemo(() => {
     const utilPct = K.margenNeto || 0;
+    if (DEMO_MODE) return { score: DEMO_CASA.noaScore, zona: DEMO_CASA.noaZona, utilPct };
     const score = noaScoreFromUtil(utilPct);
     const zona = noaZonaFromScore(score, utilPct);
     return { score, zona, utilPct };

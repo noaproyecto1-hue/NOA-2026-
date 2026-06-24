@@ -679,7 +679,7 @@ export default function Inventory() {
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: `url(https://images.unsplash.com/photo-1490818387583-1baba5e638af?w=1920&q=80)` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/90 via-teal-900/80 to-slate-900/70" />
+        <div className="absolute inset-0" style={{ background: 'rgba(12, 27, 51, 0.72)' }} />
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white rounded-full animate-pulse" />
           <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-white rounded-full animate-pulse delay-100" />

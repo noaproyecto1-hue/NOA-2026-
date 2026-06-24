@@ -110,7 +110,7 @@ export default function Copilot() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 overflow-hidden relative">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-[#0C1B33] via-[#142240] to-[#0C1B33] overflow-hidden relative">
       {/* Ocultar scrollbar pero mantener funcionalidad */}
       <style>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -121,7 +121,7 @@ export default function Copilot() {
       <div className="flex-shrink-0 px-6 py-3 relative z-10">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center shadow-lg">
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div>

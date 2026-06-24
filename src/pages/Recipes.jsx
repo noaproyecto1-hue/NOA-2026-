@@ -226,7 +226,7 @@ export default function Recipes() {
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: `url(https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=1920&q=80)` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-orange-900/90 via-amber-900/80 to-slate-900/70" />
+        <div className="absolute inset-0" style={{ background: 'rgba(12, 27, 51, 0.72)' }} />
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">

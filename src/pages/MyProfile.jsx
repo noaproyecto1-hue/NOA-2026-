@@ -121,7 +121,7 @@ export default function MyProfile() {
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: `url(https://images.unsplash.com/photo-1560250097-0b93528c311a?w=1920&q=80)` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-900/95 via-purple-900/85 to-slate-900/75" />
+        <div className="absolute inset-0" style={{ background: 'rgba(12, 27, 51, 0.72)' }} />
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white rounded-full animate-pulse" />
           <div className="absolute bottom-1/3 right-1/4 w-1.5 h-1.5 bg-white rounded-full animate-pulse delay-200" />

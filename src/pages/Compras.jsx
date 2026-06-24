@@ -24,34 +24,53 @@ import {
   ArrowUp, ArrowDown, Upload, Calendar, Download,
 } from 'lucide-react';
 
-// Genera y descarga un PDF con el detalle de una factura/compra.
-async function descargarFacturaPDF(r, itemName) {
+// Genera y descarga el PDF de la factura COMPLETA (todos sus ítems), sin
+// destacar ni ocultar ninguno (Prompt 11B). Nombre: FAC-folio-proveedor-fecha.pdf
+async function descargarFacturaPDF(invoice, items) {
   try {
     const mod = await import('jspdf');
     const JsPDF = mod.default || mod.jsPDF;
     const doc = new JsPDF();
     const money = (n) => (Number(n) || 0).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+    const list = (items && items.length) ? items : [invoice];
     doc.setFontSize(16); doc.setTextColor(12, 27, 51);
-    doc.text('FACTURA DE COMPRA', 105, 18, { align: 'center' });
+    doc.text('FACTURA ELECTRÓNICA', 105, 18, { align: 'center' });
     doc.setFontSize(11); doc.setTextColor(60, 60, 60);
-    const fdat = r.date ? new Date(r.date).toLocaleDateString('es-CL') : '—';
-    const lines = [
-      `Folio: ${r.invoice_number || '—'}`,
+    const fdat = invoice.date ? new Date(invoice.date).toLocaleDateString('es-CL') : '—';
+    const head = [
+      `Folio: ${invoice.invoice_number || '—'}`,
       `Fecha: ${fdat}`,
-      `Proveedor: ${r.supplier || '—'}`,
-      `RUT proveedor: ${r.supplier_tax_id || '—'}`,
-      `Familia: ${r.supply_category || '—'}`,
-      `Insumo: ${r.supply_item_name || r.supply_name || itemName || '—'}`,
-      `Cantidad: ${r.quantity_purchased || '—'} ${r.unit_of_measure || ''}`,
-      `Neto: ${money(r.subtotal)}`,
-      `IVA: ${money(r.tax_amount)}`,
-      `Total: ${money(r.total_cost || r.amount)}`,
-      `Estado de pago: ${r.payment_status || '—'}`,
+      `Proveedor: ${invoice.supplier || '—'}`,
+      `RUT proveedor: ${invoice.supplier_tax_id || '—'}`,
     ];
-    let y = 36; for (const l of lines) { doc.text(l, 20, y); y += 9; }
+    let y = 32; for (const l of head) { doc.text(l, 20, y); y += 8; }
+    y += 4;
+    doc.setFontSize(10); doc.setTextColor(12, 27, 51);
+    doc.text('Ítem', 20, y); doc.text('Cant.', 110, y); doc.text('Neto', 140, y); doc.text('Total', 175, y);
+    doc.setDrawColor(220); doc.line(20, y + 2, 195, y + 2); y += 9;
+    doc.setFontSize(9); doc.setTextColor(60, 60, 60);
+    let totalNeto = 0, totalBruto = 0;
+    for (const it of list) {
+      const nm = (it.supply_item_name || it.supply_name || '—').toString().slice(0, 48);
+      const neto = Number(it.subtotal) || (Number(it.total_cost) || 0) / 1.19;
+      const tot = Number(it.total_cost) || Number(it.amount) || 0;
+      totalNeto += neto; totalBruto += tot;
+      doc.text(nm, 20, y);
+      doc.text(`${it.quantity_purchased || '—'} ${it.unit_of_measure || ''}`.trim(), 110, y);
+      doc.text(money(neto), 140, y);
+      doc.text(money(tot), 175, y);
+      y += 7; if (y > 270) { doc.addPage(); y = 20; }
+    }
+    y += 4; doc.setDrawColor(220); doc.line(120, y, 195, y); y += 7;
+    doc.setFontSize(10); doc.setTextColor(12, 27, 51);
+    doc.text(`Neto: ${money(totalNeto)}`, 120, y); y += 7;
+    doc.text(`IVA (19%): ${money(totalBruto - totalNeto)}`, 120, y); y += 7;
+    doc.setFontSize(11); doc.text(`TOTAL: ${money(totalBruto)}`, 120, y);
     doc.setFontSize(8); doc.setTextColor(150, 150, 150);
-    doc.text('Documento generado por NOA — Copiloto de Administración Gastronómica', 20, y + 8);
-    doc.save(`factura_${(r.invoice_number || itemName || 'compra').toString().replace(/\s+/g, '_')}.pdf`);
+    doc.text('Documento generado por NOA — Copiloto de Administración Gastronómica', 20, 287);
+    const slug = (s) => (s || '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30);
+    const fechaFile = invoice.date ? String(invoice.date).slice(0, 10) : 'sf';
+    doc.save(`FAC-${invoice.invoice_number || 'sn'}-${slug(invoice.supplier) || 'proveedor'}-${fechaFile}.pdf`);
   } catch (e) { alert('No se pudo generar el PDF: ' + e.message); }
 }
 
@@ -113,6 +132,50 @@ export default function Compras() {
   );
 }
 
+// ── Taxonomía de familias (Prompt 10) ──
+// Recuadro 1: Gastos Directos de Fabricación (orden exacto del informe)
+const FAM_FABRICACION = [
+  'Proteína animal', 'Lácteos y huevo', 'Frutas y verduras', 'Abarrotes y secos',
+  'Panadería y masas', 'Aceites y mantecas', 'Bebidas y aguas', 'Pastelería y bollería',
+  'Cafetería y chocolates', 'Productos impulsivos', 'Artículos y merchandising',
+  'Packaging y comisiones', 'Otros alimentos',
+];
+// Recuadro 2: Compras Operacionales
+const FAM_OPERACIONAL = [
+  'Operaciones', 'Administración', 'Marketing', 'Higiene e Inocuidad', 'Otras Compras Operacionales',
+];
+const CATCH_FOOD = 'Otros alimentos';
+const CATCH_OPS = 'Otras Compras Operacionales';
+
+// Clasificación automática de una familia alimentaria → una de las 13 predefinidas.
+function classifyFood(cat) {
+  const c = (cat || '').toLowerCase().trim();
+  for (const f of FAM_FABRICACION) if (c === f.toLowerCase()) return f;
+  if (/(prote|carne|res\b|vacuno|pollo|cerdo|pavo|pescado|salm|marisco|embutido)/.test(c)) return 'Proteína animal';
+  if (/(l[áa]cteo|leche|queso|yogur|huevo|crema|mantequilla)/.test(c)) return 'Lácteos y huevo';
+  if (/(fruta|verdura|vegetal|hortaliza|tomate|palta|lechuga)/.test(c)) return 'Frutas y verduras';
+  if (/(abarrote|seco|arroz|fideo|legumbre|conserva|az[úu]car|\bsal\b|harina|granos?)/.test(c)) return 'Abarrotes y secos';
+  if (/(pan\b|panader|masa|amasander)/.test(c)) return 'Panadería y masas';
+  if (/(aceite|manteca|oliva|grasa)/.test(c)) return 'Aceites y mantecas';
+  if (/(bebida|agua|jugo|refresco|gaseosa|cerveza|n[ée]ctar)/.test(c)) return 'Bebidas y aguas';
+  if (/(pastel|boller|torta|reposter)/.test(c)) return 'Pastelería y bollería';
+  if (/(caf[ée]|chocolate|t[ée]\b|infusi)/.test(c)) return 'Cafetería y chocolates';
+  if (/(impulsiv|snack|golosina|confite)/.test(c)) return 'Productos impulsivos';
+  if (/(merchandis|art[íi]culo|souvenir|merch)/.test(c)) return 'Artículos y merchandising';
+  if (/(packaging|empaque|envase|comisi|delivery)/.test(c)) return 'Packaging y comisiones';
+  return CATCH_FOOD;
+}
+// Clasificación automática de un gasto operacional → una de las 5 sub-familias.
+function classifyOps(o) {
+  const s = `${o.cost_center_name || ''} ${o.type || ''} ${o.description || ''}`.toLowerCase();
+  if (/(higiene|inocuidad|limpieza|sanit|aseo)/.test(s)) return 'Higiene e Inocuidad';
+  if (/(marketing|publicidad|\bads\b|redes|promoci)/.test(s)) return 'Marketing';
+  if (/(admin)/.test(s)) return 'Administración';
+  if (/(operac|combustible|log[íi]stica|oficina|insumo|util|mantenc|mantenim)/.test(s)) return 'Operaciones';
+  return CATCH_OPS;
+}
+function loadFamExtra(key) { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } }
+
 // ═════════════ TAB 1: Por familia de insumos ═════════════
 function PorFamilia({ rid }) {
   const { data: costs = [] } = useQuery({
@@ -131,7 +194,6 @@ function PorFamilia({ rid }) {
     },
     enabled: true, staleTime: 2 * 60 * 1000,
   });
-  // Costos operacionales (OpEx) → familias Administración, Operaciones, etc.
   const { data: opex = [] } = useQuery({
     queryKey: ['compras-familia-opex', rid],
     queryFn: async () => {
@@ -141,101 +203,173 @@ function PorFamilia({ rid }) {
     enabled: true, staleTime: 2 * 60 * 1000,
   });
 
-  const [expanded, setExpanded] = useState({});
-  const [expandedItem, setExpandedItem] = useState(null); // `${familia}::${insumo}`
-
   // Últimos 6 meses del año actual hasta el mes vigente
   const now = new Date();
   const year = now.getFullYear();
+  const [extraVersion, setExtraVersion] = useState(0); // refresca al agregar categoría
   const monthsCols = useMemo(() => {
     const cols = [];
     for (let m = Math.max(0, now.getMonth() - 5); m <= now.getMonth(); m++) cols.push(m);
     return cols;
   }, [now]);
 
-  // Ventas por mes (para % sobre venta)
-  const salesByMonth = useMemo(() => {
+  // Venta NETA por mes (Prompt 11C): venta bruta Fudo ÷ 1.19
+  const salesNetByMonth = useMemo(() => {
     const map = {};
     for (const s of sales) {
       const d = new Date(s.date_time);
-      if (d.getFullYear() === year) map[d.getMonth()] = (map[d.getMonth()] || 0) + (Number(s.total_amount) || 0);
+      if (d.getFullYear() === year) map[d.getMonth()] = (map[d.getMonth()] || 0) + (Number(s.total_amount) || 0) / 1.19;
     }
     return map;
   }, [sales, year]);
 
-  // Agrupa por familia → mes → monto, y por insumo dentro de familia
-  const familias = useMemo(() => {
+  // Construye familias clasificadas a partir de un origen, respetando el orden predefinido.
+  function buildFamilias(order, classify, records, getMonth, getItem, getAmount, kind, extraKey) {
     const fam = {};
-    for (const c of costs) {
-      const d = new Date(c.date);
+    const ensure = (name) => (fam[name] = fam[name] || { name, byMonth: {}, items: {}, kind });
+    for (const r of records) {
+      const d = new Date(getMonth(r));
       if (d.getFullYear() !== year) continue;
       const m = d.getMonth();
-      const famName = c.supply_category || 'Sin familia';
-      const itemName = c.supply_item_name || c.supply_name || '—';
-      const amount = Number(c.subtotal) || Number(c.total_cost) || 0;
-      if (!fam[famName]) fam[famName] = { name: famName, byMonth: {}, items: {} };
-      fam[famName].byMonth[m] = (fam[famName].byMonth[m] || 0) + amount;
-      if (!fam[famName].items[itemName]) fam[famName].items[itemName] = { name: itemName, byMonth: {} };
-      fam[famName].items[itemName].byMonth[m] = (fam[famName].items[itemName].byMonth[m] || 0) + amount;
+      const famName = classify(r);
+      const itemName = getItem(r) || '—';
+      const amount = getAmount(r);
+      const f = ensure(famName);
+      f.byMonth[m] = (f.byMonth[m] || 0) + amount;
+      if (!f.items[itemName]) f.items[itemName] = { name: itemName, byMonth: {} };
+      f.items[itemName].byMonth[m] = (f.items[itemName].byMonth[m] || 0) + amount;
     }
-    // OpEx → familias por centro de costo (Administración, Operaciones, etc.)
-    const TYPE_TO_FAM = {
-      payroll: 'RRHH', rent: 'Renta', utilities: 'Operaciones', insurance: 'Operaciones',
-      maintenance: 'Administración', licenses: 'Administración', technology: 'Administración',
-      marketing: 'Marketing', other: 'Operaciones',
-    };
-    const normCenter = (o) => {
-      const c = (o.cost_center_name || '').toUpperCase();
-      if (c.includes('ADMIN')) return 'Administración';
-      if (c.includes('OPERAC') || c.includes('GASTOS FIJOS')) return 'Operaciones';
-      if (c.includes('RRHH') || c.includes('PAYROLL')) return 'RRHH';
-      if (c.includes('RENTA') || c.includes('REAL STATE')) return 'Renta';
-      if (c.includes('MARKETING')) return 'Marketing';
-      return TYPE_TO_FAM[o.type] || 'Operaciones';
-    };
-    for (const o of opex) {
-      const d = new Date(o.date);
-      if (d.getFullYear() !== year) continue;
-      const m = d.getMonth();
-      const famName = normCenter(o);
-      const itemName = o.description || o.type || 'Gasto';
-      const amount = Number(o.amount) || 0;
-      if (!fam[famName]) fam[famName] = { name: famName, byMonth: {}, items: {}, kind: 'opex' };
-      fam[famName].kind = 'opex';
-      fam[famName].byMonth[m] = (fam[famName].byMonth[m] || 0) + amount;
-      if (!fam[famName].items[itemName]) fam[famName].items[itemName] = { name: itemName, byMonth: {} };
-      fam[famName].items[itemName].byMonth[m] = (fam[famName].items[itemName].byMonth[m] || 0) + amount;
-    }
-
-    // Total por familia para ordenar
-    return Object.values(fam).map((f) => ({
-      ...f,
-      kind: f.kind || 'insumo',
-      total: Object.values(f.byMonth).reduce((a, b) => a + b, 0),
-      itemsList: Object.values(f.items).sort((a, b) =>
-        Object.values(b.byMonth).reduce((x, y) => x + y, 0) - Object.values(a.byMonth).reduce((x, y) => x + y, 0)),
-    })).sort((a, b) => b.total - a.total);
-  }, [costs, opex, year]);
-
-  // Determina color de celda según % sobre venta vs promedio de la familia
-  function cellColor(famPctList, pct, monthIdx) {
-    if (monthIdx === now.getMonth()) return 'text-noa-info'; // mes actual = azul
-    if (!pct || famPctList.length < 2) return 'text-green-600';
-    const avg = famPctList.reduce((a, b) => a + b, 0) / famPctList.length;
-    if (pct > avg * 1.30) return 'text-red-600';        // alerta de costo
-    if (pct > avg * 1.15) return 'text-orange-600';     // leve desviación
-    return 'text-green-600';                             // normal
+    const extra = loadFamExtra(extraKey);
+    const fullOrder = [...order];
+    for (const e of extra) if (!fullOrder.includes(e)) fullOrder.push(e);
+    return fullOrder
+      .filter((name) => fam[name] || extra.includes(name))
+      .map((name) => {
+        const f = fam[name] || { name, byMonth: {}, items: {}, kind };
+        return {
+          ...f, kind,
+          total: Object.values(f.byMonth).reduce((a, b) => a + b, 0),
+          itemsList: Object.values(f.items).sort((a, b) =>
+            Object.values(b.byMonth).reduce((x, y) => x + y, 0) - Object.values(a.byMonth).reduce((x, y) => x + y, 0)),
+        };
+      });
   }
 
-  if (familias.length === 0) {
-    return <EmptyData msg="No hay compras registradas este año. Importa facturas en 'Ventas y Compras' o registra insumos comprados." />;
-  }
+  // Recuadro 1: alimentario (compra neta = subtotal o total/1.19)
+  const famFood = useMemo(() => buildFamilias(
+    FAM_FABRICACION, (c) => classifyFood(c.supply_category),
+    costs, (c) => c.date, (c) => c.supply_item_name || c.supply_name,
+    (c) => Number(c.subtotal) || (Number(c.total_cost) || 0) / 1.19, 'insumo', 'noa_fam_food_extra',
+  ), [costs, year, extraVersion]);
+
+  // Recuadro 2: operacional
+  const famOps = useMemo(() => buildFamilias(
+    FAM_OPERACIONAL, classifyOps,
+    opex, (o) => o.date, (o) => o.description || o.type || 'Gasto',
+    (o) => Number(o.amount) || 0, 'opex', 'noa_fam_ops_extra',
+  ), [opex, year, extraVersion]);
+
+  const hayDatos = famFood.length > 0 || famOps.length > 0;
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-lg font-semibold text-noa-navy font-display">Compras por familia</h2>
-        <p className="text-sm text-gray-500">Insumos y costos operacionales (Administración, Operaciones…). Gasto mensual y % sobre venta · {year}. Pincha una familia → un insumo → su proveedor.</p>
+        <p className="text-sm text-gray-500">Gasto mensual y % sobre venta neta · {year}. Pincha una familia → un insumo → sus facturas.</p>
+      </div>
+
+      {!hayDatos ? (
+        <EmptyData msg="No hay compras registradas este año. Importa facturas en 'Ventas y Compras' o registra insumos comprados." />
+      ) : (
+        <>
+          <FamiliaRecuadro
+            titulo="Gastos Directos de Fabricación"
+            subtitulo="Insumos de producción (proteína, lácteos, frutas y verduras…)"
+            familias={famFood} monthsCols={monthsCols} salesNetByMonth={salesNetByMonth}
+            now={now} rid={rid} extraKey="noa_fam_food_extra" defaultOrder={FAM_FABRICACION}
+            onAdded={() => setExtraVersion((v) => v + 1)} />
+
+          <div className="pt-2 border-t border-gray-200" />
+
+          <FamiliaRecuadro
+            titulo="Compras Operacionales"
+            subtitulo="Operaciones, administración, marketing, higiene e inocuidad…"
+            familias={famOps} monthsCols={monthsCols} salesNetByMonth={salesNetByMonth}
+            now={now} rid={rid} extraKey="noa_fam_ops_extra" defaultOrder={FAM_OPERACIONAL}
+            onAdded={() => setExtraVersion((v) => v + 1)} />
+        </>
+      )}
+
+      {/* Leyenda (Prompt 11C) */}
+      <div className="flex flex-wrap gap-4 text-xs text-gray-600">
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-600" /> dentro del benchmark</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-600" /> leve desviación (≤2pp)</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-600" /> alerta (&gt;2pp)</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-noa-info" /> mes actual</span>
+        <span className="inline-flex items-center gap-1.5"><ArrowUp className="w-3 h-3 text-red-600" /> subió ·  <ArrowDown className="w-3 h-3 text-blue-600" /> bajó (% vs mes anterior)</span>
+      </div>
+    </div>
+  );
+}
+
+// Celda mensual: monto neto + % sobre venta neta con tendencia y color benchmark (Prompt 11C)
+function CeldaMes({ amount, pct, prevPct, isCurrent, small }) {
+  let color = 'text-green-600';
+  if (isCurrent) color = 'text-noa-info';
+  else if (prevPct != null) { const d = pct - prevPct; color = d <= 0 ? 'text-green-600' : d <= 2 ? 'text-orange-600' : 'text-red-600'; }
+  const showArrow = !isCurrent && prevPct != null && Math.abs(pct - prevPct) >= 0.1;
+  const up = pct > (prevPct ?? 0);
+  return (
+    <TableCell className="text-right">
+      <div className={`${small ? 'text-[11px] text-gray-700' : 'text-xs font-semibold text-gray-900'}`}>{amount ? clpK(amount) : '—'}</div>
+      {pct > 0 && (
+        <div className={`text-[11px] inline-flex items-center gap-0.5 ${color}`}>
+          {pct.toFixed(1)}%
+          {showArrow && (up ? <ArrowUp className="w-3 h-3 text-red-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />)}
+        </div>
+      )}
+    </TableCell>
+  );
+}
+
+// Recuadro de familias (Prompt 10 + 11): tabla con drill-down familia → insumo → facturas.
+function FamiliaRecuadro({ titulo, subtitulo, familias, monthsCols, salesNetByMonth, now, rid, extraKey, defaultOrder, onAdded }) {
+  const [expanded, setExpanded] = useState({});
+  const [expandedItem, setExpandedItem] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const [nueva, setNueva] = useState('');
+  const cur = now.getMonth();
+
+  function addCategoria() {
+    const n = nueva.trim();
+    if (!n) { setAdding(false); return; }
+    try {
+      const extra = loadFamExtra(extraKey);
+      if (!extra.includes(n) && !defaultOrder.includes(n)) localStorage.setItem(extraKey, JSON.stringify([...extra, n]));
+    } catch {}
+    setNueva(''); setAdding(false);
+    onAdded?.();
+  }
+
+  // pct por familia/mes sobre venta neta
+  const pctOf = (byMonth, m) => (salesNetByMonth[m] ? (byMonth[m] || 0) / salesNetByMonth[m] * 100 : 0);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-bold text-noa-navy font-display">{titulo}</h3>
+          {subtitulo && <p className="text-[11px] text-gray-400">{subtitulo}</p>}
+        </div>
+        {adding ? (
+          <div className="flex items-center gap-1.5">
+            <Input value={nueva} autoFocus onChange={(e) => setNueva(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addCategoria()} placeholder="Nueva categoría" className="h-8 w-44 text-xs" />
+            <Button size="sm" className="h-8 bg-noa-navy hover:bg-noa-navy-mid" onClick={addCategoria}><Check className="w-4 h-4" /></Button>
+            <Button size="sm" variant="ghost" className="h-8" onClick={() => { setAdding(false); setNueva(''); }}><X className="w-4 h-4" /></Button>
+          </div>
+        ) : (
+          <Button size="sm" variant="outline" onClick={() => setAdding(true)}><Plus className="w-4 h-4 mr-1.5" /> Nueva categoría</Button>
+        )}
       </div>
 
       <div className="overflow-x-auto border rounded-lg bg-white">
@@ -244,15 +378,14 @@ function PorFamilia({ rid }) {
             <TableRow>
               <TableHead className="min-w-[200px]">Familia</TableHead>
               {monthsCols.map((m) => (
-                <TableHead key={m} className={`text-right ${m === now.getMonth() ? 'text-noa-info' : ''}`}>
-                  {MONTHS[m]}{m === now.getMonth() ? ' •' : ''}
+                <TableHead key={m} className={`text-right ${m === cur ? 'text-noa-info font-semibold' : ''}`}>
+                  {MONTHS[m]}{m === cur ? ' •' : ''}
                 </TableHead>
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
             {familias.map((f) => {
-              const famPctList = monthsCols.map((m) => salesByMonth[m] ? (f.byMonth[m] || 0) / salesByMonth[m] * 100 : 0).filter((x) => x > 0);
               const isOpen = expanded[f.name];
               return (
                 <React.Fragment key={f.name}>
@@ -261,19 +394,12 @@ function PorFamilia({ rid }) {
                       <span className="inline-flex items-center gap-1.5">
                         {isOpen ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                         {f.name} <span className="text-gray-400 text-xs">({f.itemsList.length})</span>
-                        <MonthArrow current={f.byMonth[now.getMonth()] || 0} previous={f.byMonth[now.getMonth() - 1] || 0} />
                       </span>
                     </TableCell>
-                    {monthsCols.map((m) => {
-                      const amount = f.byMonth[m] || 0;
-                      const pct = salesByMonth[m] ? amount / salesByMonth[m] * 100 : 0;
-                      return (
-                        <TableCell key={m} className="text-right">
-                          <div className="text-xs font-semibold text-gray-900">{amount ? clpK(amount) : '—'}</div>
-                          {pct > 0 && <div className={`text-[11px] ${cellColor(famPctList, pct, m)}`}>{pct.toFixed(1)}%</div>}
-                        </TableCell>
-                      );
-                    })}
+                    {monthsCols.map((m, idx) => (
+                      <CeldaMes key={m} amount={f.byMonth[m] || 0} pct={pctOf(f.byMonth, m)}
+                        prevPct={idx > 0 ? pctOf(f.byMonth, monthsCols[idx - 1]) : null} isCurrent={m === cur} />
+                    ))}
                   </TableRow>
                   {isOpen && f.itemsList.map((it) => {
                     const itemKey = `${f.name}::${it.name}`;
@@ -287,16 +413,10 @@ function PorFamilia({ rid }) {
                               {it.name}
                             </span>
                           </TableCell>
-                          {monthsCols.map((m) => {
-                            const amount = it.byMonth[m] || 0;
-                            const pct = salesByMonth[m] ? amount / salesByMonth[m] * 100 : 0;
-                            return (
-                              <TableCell key={m} className="text-right">
-                                <div className="text-[11px] text-gray-700">{amount ? clpK(amount) : '—'}</div>
-                                {pct > 0 && <div className="text-[10px] text-gray-400">{pct.toFixed(2)}%</div>}
-                              </TableCell>
-                            );
-                          })}
+                          {monthsCols.map((m, idx) => (
+                            <CeldaMes key={m} small amount={it.byMonth[m] || 0} pct={pctOf(it.byMonth, m)}
+                              prevPct={idx > 0 ? pctOf(it.byMonth, monthsCols[idx - 1]) : null} isCurrent={m === cur} />
+                          ))}
                         </TableRow>
                         {itemOpen && (
                           <TableRow className="bg-white">
@@ -311,75 +431,159 @@ function PorFamilia({ rid }) {
                 </React.Fragment>
               );
             })}
+            {familias.length === 0 && (
+              <TableRow><TableCell colSpan={monthsCols.length + 1} className="text-center text-xs text-gray-400 py-4">Sin movimientos en este grupo este año.</TableCell></TableRow>
+            )}
           </TableBody>
         </Table>
-      </div>
-
-      {/* Leyenda */}
-      <div className="flex flex-wrap gap-4 text-xs text-gray-600">
-        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-600" /> ≤ umbral normal</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-600" /> leve desviación</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-600" /> alerta de costo</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-noa-info" /> mes actual</span>
       </div>
     </div>
   );
 }
 
-// Detalle INLINE (desplegable) de un insumo o gasto: facturas, proveedores y montos.
+// Detalle INLINE de un insumo/gasto: compras agrupadas por MES (Nivel 2) y
+// facturas por mes (Nivel 3) con vista previa de la factura completa (Prompt 11/11B).
 function ItemComprasInline({ kind, name, rid }) {
-  const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['compras-item-detail', kind, name, rid],
+  // Trae TODAS las compras (para poder reconstruir la factura completa por folio)
+  const { data: allRows = [], isLoading } = useQuery({
+    queryKey: ['compras-item-all', kind, rid],
     queryFn: async () => {
       if (kind === 'opex') {
         const all = rid ? await base44.entities.OpEx.filter({ restaurant_id: rid }) : await base44.entities.OpEx.list();
-        return (all || []).filter((o) => (o.description || o.type || 'Gasto') === name);
+        return all || [];
       }
       const all = rid ? await base44.entities.SupplyCost.filter({ restaurant_id: rid }) : await base44.entities.SupplyCost.list();
-      return (all || []).filter((c) => (c.supply_item_name || c.supply_name) === name);
+      return all || [];
     },
     enabled: true, staleTime: 60 * 1000,
   });
-  const total = rows.reduce((s, r) => s + (Number(r.total_cost) || Number(r.amount) || 0), 0);
-  const proveedores = [...new Set(rows.map((r) => r.supplier).filter(Boolean))];
+
+  const rows = useMemo(() => allRows.filter((r) =>
+    kind === 'opex' ? (r.description || r.type || 'Gasto') === name : (r.supply_item_name || r.supply_name) === name
+  ), [allRows, kind, name]);
+
+  // Agrupa por mes (Nivel 2)
+  const meses = useMemo(() => {
+    const map = {};
+    for (const r of rows) {
+      const d = (r.date || '').slice(0, 7); if (!d) continue;
+      (map[d] = map[d] || []).push(r);
+    }
+    return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0])).map(([ym, list]) => {
+      const [y, m] = ym.split('-');
+      return { ym, label: `${MONTHS[Number(m) - 1]} ${y}`, list, total: list.reduce((s, r) => s + (Number(r.total_cost) || Number(r.amount) || 0), 0) };
+    });
+  }, [rows]);
+
+  const [openMonth, setOpenMonth] = useState(null);
+  const [preview, setPreview] = useState(null); // invoice_number en preview
+
+  const siblings = (inv) => allRows.filter((r) => r.invoice_number && r.invoice_number === inv);
+
+  if (isLoading) return <div className="bg-gray-50/70 border-t border-gray-100 px-5 py-3"><div className="flex items-center gap-2 text-gray-500 py-2 text-xs"><Loader2 className="w-4 h-4 animate-spin" /> Cargando…</div></div>;
+  if (rows.length === 0) return <div className="bg-gray-50/70 border-t border-gray-100 px-5 py-3"><p className="text-xs text-gray-500 py-2">Sin facturas registradas para "{name}".</p></div>;
 
   return (
-    <div className="bg-gray-50/70 border-t border-gray-100 px-5 py-3">
-      {isLoading ? (
-        <div className="flex items-center gap-2 text-gray-500 py-2 text-xs"><Loader2 className="w-4 h-4 animate-spin" /> Cargando…</div>
-      ) : rows.length === 0 ? (
-        <p className="text-xs text-gray-500 py-2">Sin facturas registradas para "{name}".</p>
-      ) : (
-        <>
-          <div className="flex items-center gap-4 mb-2 text-[11px] text-gray-500 flex-wrap">
-            <span>{rows.length} documentos</span>
-            {proveedores.length > 0 && <span>Proveedores: {proveedores.slice(0, 4).join(', ')}{proveedores.length > 4 ? '…' : ''}</span>}
-            <span className="ml-auto font-semibold text-noa-navy">Total {clp(total)}</span>
+    <div className="bg-gray-50/70 border-t border-gray-100 px-5 py-3 space-y-2">
+      {meses.map((mes, mi) => {
+        const isOpen = openMonth === mes.ym || (openMonth === null && mi === 0);
+        return (
+          <div key={mes.ym} className="rounded-lg border bg-white overflow-hidden">
+            {/* Nivel 2: encabezado de mes (fondo azul claro) */}
+            <button onClick={() => setOpenMonth(isOpen ? '__none__' : mes.ym)}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium hover:brightness-95"
+              style={{ background: '#EAF2FB', color: '#0C447C' }}>
+              <span className="inline-flex items-center gap-1.5">
+                <ChevronRight className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                {mes.label} · {mes.list.length} compra{mes.list.length !== 1 ? 's' : ''}
+              </span>
+              <span className="font-semibold">Total {clpK(mes.total)}</span>
+            </button>
+            {/* Nivel 3: facturas del mes */}
+            {isOpen && (
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50"><tr className="text-left text-gray-500">
+                  <th className="py-1.5 px-3 w-8"></th><th className="py-1.5 px-3">Fecha</th><th className="py-1.5 px-3">Proveedor</th>
+                  <th className="py-1.5 px-3">N° Factura</th><th className="py-1.5 px-3 text-right">Monto ítem</th><th className="py-1.5 px-3 text-center">PDF</th>
+                </tr></thead>
+                <tbody className="divide-y">
+                  {[...mes.list].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => {
+                    const inv = r.invoice_number;
+                    const sibs = inv ? siblings(inv) : [r];
+                    const isPrev = preview === `${mes.ym}:${inv}:${i}`;
+                    return (
+                      <React.Fragment key={i}>
+                        <tr className="hover:bg-gray-50">
+                          <td className="py-1.5 px-3 text-center">
+                            <button title="Vista previa de la factura" className="text-gray-400 hover:text-noa-navy"
+                              onClick={() => setPreview(isPrev ? null : `${mes.ym}:${inv}:${i}`)}>👁</button>
+                          </td>
+                          <td className="py-1.5 px-3">{fdate(r.date)}</td>
+                          <td className="py-1.5 px-3">{r.supplier || (r.cost_center_name || '—')}</td>
+                          <td className="py-1.5 px-3">{inv || '—'}</td>
+                          <td className="py-1.5 px-3 text-right font-semibold">{clp(r.total_cost || r.amount)}</td>
+                          <td className="py-1.5 px-3 text-center">
+                            <button title="Descargar factura completa (PDF)" className="text-noa-orange-dk hover:text-noa-orange inline-flex"
+                              onClick={() => descargarFacturaPDF(r, sibs)}><Download className="w-4 h-4" /></button>
+                          </td>
+                        </tr>
+                        {isPrev && (
+                          <tr><td colSpan={6} className="p-0">
+                            <FacturaPreview invoice={r} items={sibs} consultado={name} />
+                          </td></tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
-          <div className="max-h-72 overflow-y-auto rounded-lg border bg-white">
-            <table className="w-full text-xs">
-              <thead className="bg-gray-50 sticky top-0"><tr className="text-left text-gray-500">
-                <th className="py-1.5 px-3">Fecha</th><th className="py-1.5 px-3">Proveedor</th><th className="py-1.5 px-3">Folio</th>
-                <th className="py-1.5 px-3 text-right">Cantidad</th><th className="py-1.5 px-3 text-right">Monto</th><th className="py-1.5 px-3 text-center">Factura</th>
-              </tr></thead>
-              <tbody className="divide-y">
-                {[...rows].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
-                    <td className="py-1.5 px-3">{fdate(r.date)}</td>
-                    <td className="py-1.5 px-3">{r.supplier || (r.cost_center_name || '—')}</td>
-                    <td className="py-1.5 px-3">{r.invoice_number || '—'}</td>
-                    <td className="py-1.5 px-3 text-right">{r.quantity_purchased ? `${r.quantity_purchased} ${r.unit_of_measure || ''}` : '—'}</td>
-                    <td className="py-1.5 px-3 text-right font-semibold">{clp(r.total_cost || r.amount)}</td>
-                    <td className="py-1.5 px-3 text-center">
-                      <button title="Descargar factura PDF" className="text-noa-orange-dk hover:text-noa-orange inline-flex" onClick={() => descargarFacturaPDF(r, name)}><Download className="w-4 h-4" /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
+        );
+      })}
+    </div>
+  );
+}
+
+// Vista previa de la factura COMPLETA con el ítem consultado destacado (Prompt 11B).
+function FacturaPreview({ invoice, items, consultado }) {
+  const money = (n) => clp(n);
+  const list = (items && items.length) ? items : [invoice];
+  const neto = list.reduce((s, it) => s + (Number(it.subtotal) || (Number(it.total_cost) || 0) / 1.19), 0);
+  const bruto = list.reduce((s, it) => s + (Number(it.total_cost) || Number(it.amount) || 0), 0);
+  return (
+    <div className="bg-blue-50/40 border-t border-blue-100 px-4 py-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[11px] font-semibold text-noa-navy">Factura {invoice.invoice_number || '—'} · {invoice.supplier || '—'} · {fdate(invoice.date)}</p>
+        <span className="text-[10px] text-gray-400">El ítem consultado aparece destacado</span>
+      </div>
+      <div className="rounded-lg border bg-white overflow-hidden">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50"><tr className="text-left text-gray-500">
+            <th className="py-1.5 px-3">Ítem</th><th className="py-1.5 px-3 text-right">Cantidad</th>
+            <th className="py-1.5 px-3 text-right">Neto</th><th className="py-1.5 px-3 text-right">Total</th>
+          </tr></thead>
+          <tbody className="divide-y">
+            {list.map((it, i) => {
+              const nm = it.supply_item_name || it.supply_name || it.description || '—';
+              const esConsultado = nm === consultado;
+              return (
+                <tr key={i} className={esConsultado ? 'bg-yellow-50' : ''} style={esConsultado ? { borderLeft: '3px solid #2563EB' } : undefined}>
+                  <td className="py-1.5 px-3">{nm} {esConsultado && <span className="text-[9px] text-blue-700 font-semibold ml-1">● consultado</span>}</td>
+                  <td className="py-1.5 px-3 text-right">{it.quantity_purchased ? `${it.quantity_purchased} ${it.unit_of_measure || ''}` : '—'}</td>
+                  <td className="py-1.5 px-3 text-right">{money(Number(it.subtotal) || (Number(it.total_cost) || 0) / 1.19)}</td>
+                  <td className="py-1.5 px-3 text-right font-semibold">{money(it.total_cost || it.amount)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot><tr className="bg-gray-50 text-noa-navy font-semibold">
+            <td className="py-1.5 px-3" colSpan={2}>Total factura</td>
+            <td className="py-1.5 px-3 text-right">{money(neto)}</td>
+            <td className="py-1.5 px-3 text-right">{money(bruto)}</td>
+          </tr></tfoot>
+        </table>
+      </div>
     </div>
   );
 }

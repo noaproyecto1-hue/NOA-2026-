@@ -21,8 +21,39 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import {
   AlertCircle, Loader2, FileText, ArrowLeft, Search, Building2, Receipt,
   TrendingUp, Layers, Boxes, Plus, Pencil, Trash2, ChevronRight, ChevronDown, X, Check,
-  ArrowUp, ArrowDown, Upload, Calendar,
+  ArrowUp, ArrowDown, Upload, Calendar, Download,
 } from 'lucide-react';
+
+// Genera y descarga un PDF con el detalle de una factura/compra.
+async function descargarFacturaPDF(r, itemName) {
+  try {
+    const mod = await import('jspdf');
+    const JsPDF = mod.default || mod.jsPDF;
+    const doc = new JsPDF();
+    const money = (n) => (Number(n) || 0).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+    doc.setFontSize(16); doc.setTextColor(12, 27, 51);
+    doc.text('FACTURA DE COMPRA', 105, 18, { align: 'center' });
+    doc.setFontSize(11); doc.setTextColor(60, 60, 60);
+    const fdat = r.date ? new Date(r.date).toLocaleDateString('es-CL') : '—';
+    const lines = [
+      `Folio: ${r.invoice_number || '—'}`,
+      `Fecha: ${fdat}`,
+      `Proveedor: ${r.supplier || '—'}`,
+      `RUT proveedor: ${r.supplier_tax_id || '—'}`,
+      `Familia: ${r.supply_category || '—'}`,
+      `Insumo: ${r.supply_item_name || r.supply_name || itemName || '—'}`,
+      `Cantidad: ${r.quantity_purchased || '—'} ${r.unit_of_measure || ''}`,
+      `Neto: ${money(r.subtotal)}`,
+      `IVA: ${money(r.tax_amount)}`,
+      `Total: ${money(r.total_cost || r.amount)}`,
+      `Estado de pago: ${r.payment_status || '—'}`,
+    ];
+    let y = 36; for (const l of lines) { doc.text(l, 20, y); y += 9; }
+    doc.setFontSize(8); doc.setTextColor(150, 150, 150);
+    doc.text('Documento generado por NOA — Copiloto de Administración Gastronómica', 20, y + 8);
+    doc.save(`factura_${(r.invoice_number || itemName || 'compra').toString().replace(/\s+/g, '_')}.pdf`);
+  } catch (e) { alert('No se pudo generar el PDF: ' + e.message); }
+}
 
 // Flecha de comparación vs mes anterior: rojo = subió el gasto, azul = bajó.
 function MonthArrow({ current, previous }) {
@@ -333,7 +364,7 @@ function ItemComprasModal({ item, rid, onClose, onProveedor }) {
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>Fecha</TableHead><TableHead>Proveedor</TableHead><TableHead>Folio</TableHead>
-                  <TableHead className="text-right">Cantidad</TableHead><TableHead className="text-right">Monto</TableHead>
+                  <TableHead className="text-right">Cantidad</TableHead><TableHead className="text-right">Monto</TableHead><TableHead className="text-center">Factura</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {[...rows].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => (
@@ -343,6 +374,11 @@ function ItemComprasModal({ item, rid, onClose, onProveedor }) {
                       <TableCell className="text-xs">{r.invoice_number || '—'}</TableCell>
                       <TableCell className="text-right text-xs">{r.quantity_purchased ? `${r.quantity_purchased} ${r.unit_of_measure || ''}` : '—'}</TableCell>
                       <TableCell className="text-right text-xs font-semibold">{clp(r.total_cost || r.amount)}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button title="Descargar factura PDF" className="text-noa-orange-dk hover:text-noa-orange" onClick={() => descargarFacturaPDF(r, name)}><Download className="w-4 h-4" /></button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

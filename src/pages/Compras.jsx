@@ -142,7 +142,7 @@ function PorFamilia({ rid }) {
   });
 
   const [expanded, setExpanded] = useState({});
-  const [detail, setDetail] = useState(null); // { kind:'insumo'|'opex'|'proveedor', name }
+  const [expandedItem, setExpandedItem] = useState(null); // `${familia}::${insumo}`
 
   // Últimos 6 meses del año actual hasta el mes vigente
   const now = new Date();
@@ -275,25 +275,39 @@ function PorFamilia({ rid }) {
                       );
                     })}
                   </TableRow>
-                  {isOpen && f.itemsList.map((it) => (
-                    <TableRow key={`${f.name}-${it.name}`} className="bg-gray-50/50 hover:bg-noa-orange/5">
-                      <TableCell className="pl-10 text-xs">
-                        <button className="text-noa-orange-dk hover:underline inline-flex items-center gap-1" onClick={() => setDetail({ kind: f.kind, name: it.name })}>
-                          {it.name} <ChevronRight className="w-3 h-3 text-gray-300" />
-                        </button>
-                      </TableCell>
-                      {monthsCols.map((m) => {
-                        const amount = it.byMonth[m] || 0;
-                        const pct = salesByMonth[m] ? amount / salesByMonth[m] * 100 : 0;
-                        return (
-                          <TableCell key={m} className="text-right">
-                            <div className="text-[11px] text-gray-700">{amount ? clpK(amount) : '—'}</div>
-                            {pct > 0 && <div className="text-[10px] text-gray-400">{pct.toFixed(2)}%</div>}
+                  {isOpen && f.itemsList.map((it) => {
+                    const itemKey = `${f.name}::${it.name}`;
+                    const itemOpen = expandedItem === itemKey;
+                    return (
+                      <React.Fragment key={itemKey}>
+                        <TableRow className="bg-gray-50/50 hover:bg-noa-orange/5 cursor-pointer" onClick={() => setExpandedItem(itemOpen ? null : itemKey)}>
+                          <TableCell className="pl-10 text-xs">
+                            <span className="text-noa-orange-dk hover:underline inline-flex items-center gap-1">
+                              {itemOpen ? <ChevronDown className="w-3 h-3 text-gray-400" /> : <ChevronRight className="w-3 h-3 text-gray-300" />}
+                              {it.name}
+                            </span>
                           </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ))}
+                          {monthsCols.map((m) => {
+                            const amount = it.byMonth[m] || 0;
+                            const pct = salesByMonth[m] ? amount / salesByMonth[m] * 100 : 0;
+                            return (
+                              <TableCell key={m} className="text-right">
+                                <div className="text-[11px] text-gray-700">{amount ? clpK(amount) : '—'}</div>
+                                {pct > 0 && <div className="text-[10px] text-gray-400">{pct.toFixed(2)}%</div>}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                        {itemOpen && (
+                          <TableRow className="bg-white">
+                            <TableCell colSpan={monthsCols.length + 1} className="p-0">
+                              <ItemComprasInline kind={f.kind} name={it.name} rid={rid} />
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </React.Fragment>
               );
             })}
@@ -308,20 +322,12 @@ function PorFamilia({ rid }) {
         <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-600" /> alerta de costo</span>
         <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-noa-info" /> mes actual</span>
       </div>
-
-      {detail?.kind !== 'proveedor' && detail && (
-        <ItemComprasModal item={detail} rid={rid} onClose={() => setDetail(null)} onProveedor={(prov) => setDetail({ kind: 'proveedor', name: prov })} />
-      )}
-      {detail?.kind === 'proveedor' && (
-        <ProveedorComprasModal proveedor={detail.name} rid={rid} onClose={() => setDetail(null)} />
-      )}
     </div>
   );
 }
 
-// Modal de detalle de un insumo o gasto: facturas, proveedores y montos.
-function ItemComprasModal({ item, rid, onClose, onProveedor }) {
-  const { kind, name } = item;
+// Detalle INLINE (desplegable) de un insumo o gasto: facturas, proveedores y montos.
+function ItemComprasInline({ kind, name, rid }) {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['compras-item-detail', kind, name, rid],
     queryFn: async () => {
@@ -338,61 +344,48 @@ function ItemComprasModal({ item, rid, onClose, onProveedor }) {
   const proveedores = [...new Set(rows.map((r) => r.supplier).filter(Boolean))];
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl font-sans">
-        <DialogHeader><DialogTitle className="font-display text-noa-navy flex items-center gap-2"><FileText className="w-5 h-5 text-noa-orange" /> {name}</DialogTitle></DialogHeader>
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-gray-500 py-8 justify-center"><Loader2 className="w-5 h-5 animate-spin" /> Cargando…</div>
-        ) : rows.length === 0 ? (
-          <p className="text-sm text-gray-500 py-8 text-center">Sin facturas registradas para "{name}".</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-3 gap-3">
-              <MiniStat label="Documentos" value={rows.length} />
-              <MiniStat label="Proveedores" value={proveedores.length || '—'} />
-              <MiniStat label="Total" value={clp(total)} highlight />
-            </div>
-            {proveedores.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                <span className="text-xs text-gray-500">Proveedores:</span>
-                {proveedores.map((p) => (
-                  <button key={p} className="text-xs text-noa-navy hover:underline bg-noa-navy/5 rounded px-2 py-0.5" onClick={() => onProveedor(p)}>{p} ›</button>
+    <div className="bg-gray-50/70 border-t border-gray-100 px-5 py-3">
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-gray-500 py-2 text-xs"><Loader2 className="w-4 h-4 animate-spin" /> Cargando…</div>
+      ) : rows.length === 0 ? (
+        <p className="text-xs text-gray-500 py-2">Sin facturas registradas para "{name}".</p>
+      ) : (
+        <>
+          <div className="flex items-center gap-4 mb-2 text-[11px] text-gray-500 flex-wrap">
+            <span>{rows.length} documentos</span>
+            {proveedores.length > 0 && <span>Proveedores: {proveedores.slice(0, 4).join(', ')}{proveedores.length > 4 ? '…' : ''}</span>}
+            <span className="ml-auto font-semibold text-noa-navy">Total {clp(total)}</span>
+          </div>
+          <div className="max-h-72 overflow-y-auto rounded-lg border bg-white">
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50 sticky top-0"><tr className="text-left text-gray-500">
+                <th className="py-1.5 px-3">Fecha</th><th className="py-1.5 px-3">Proveedor</th><th className="py-1.5 px-3">Folio</th>
+                <th className="py-1.5 px-3 text-right">Cantidad</th><th className="py-1.5 px-3 text-right">Monto</th><th className="py-1.5 px-3 text-center">Factura</th>
+              </tr></thead>
+              <tbody className="divide-y">
+                {[...rows].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="py-1.5 px-3">{fdate(r.date)}</td>
+                    <td className="py-1.5 px-3">{r.supplier || (r.cost_center_name || '—')}</td>
+                    <td className="py-1.5 px-3">{r.invoice_number || '—'}</td>
+                    <td className="py-1.5 px-3 text-right">{r.quantity_purchased ? `${r.quantity_purchased} ${r.unit_of_measure || ''}` : '—'}</td>
+                    <td className="py-1.5 px-3 text-right font-semibold">{clp(r.total_cost || r.amount)}</td>
+                    <td className="py-1.5 px-3 text-center">
+                      <button title="Descargar factura PDF" className="text-noa-orange-dk hover:text-noa-orange inline-flex" onClick={() => descargarFacturaPDF(r, name)}><Download className="w-4 h-4" /></button>
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            )}
-            <div className="max-h-80 overflow-y-auto border rounded-lg">
-              <Table>
-                <TableHeader><TableRow>
-                  <TableHead>Fecha</TableHead><TableHead>Proveedor</TableHead><TableHead>Folio</TableHead>
-                  <TableHead className="text-right">Cantidad</TableHead><TableHead className="text-right">Monto</TableHead><TableHead className="text-center">Factura</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {[...rows].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-xs">{fdate(r.date)}</TableCell>
-                      <TableCell className="text-xs">{r.supplier ? <button className="text-noa-navy hover:underline" onClick={() => onProveedor(r.supplier)}>{r.supplier}</button> : (r.cost_center_name || '—')}</TableCell>
-                      <TableCell className="text-xs">{r.invoice_number || '—'}</TableCell>
-                      <TableCell className="text-right text-xs">{r.quantity_purchased ? `${r.quantity_purchased} ${r.unit_of_measure || ''}` : '—'}</TableCell>
-                      <TableCell className="text-right text-xs font-semibold">{clp(r.total_cost || r.amount)}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button title="Descargar factura PDF" className="text-noa-orange-dk hover:text-noa-orange" onClick={() => descargarFacturaPDF(r, name)}><Download className="w-4 h-4" /></button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
 // Modal de detalle de un proveedor: todo lo que nos ha vendido (datos SII).
-function ProveedorComprasModal({ proveedor, rid, onClose }) {
+function ProveedorComprasInline({ proveedor, rid }) {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['compras-prov-detail', proveedor, rid],
     queryFn: async () => {
@@ -406,41 +399,38 @@ function ProveedorComprasModal({ proveedor, rid, onClose }) {
   const items = [...new Set(rows.map((r) => r.supply_item_name || r.supply_name).filter(Boolean))];
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl font-sans">
-        <DialogHeader><DialogTitle className="font-display text-noa-navy flex items-center gap-2"><Building2 className="w-5 h-5 text-noa-orange" /> {proveedor}</DialogTitle></DialogHeader>
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-gray-500 py-8 justify-center"><Loader2 className="w-5 h-5 animate-spin" /> Cargando…</div>
-        ) : (
-          <>
-            <div className="grid grid-cols-3 gap-3">
-              <MiniStat label="RUT" value={taxId || '—'} />
-              <MiniStat label="Facturas / Insumos" value={`${rows.length} / ${items.length}`} />
-              <MiniStat label="Total comprado" value={clp(total)} highlight />
-            </div>
-            <div className="max-h-80 overflow-y-auto border rounded-lg">
-              <Table>
-                <TableHeader><TableRow>
-                  <TableHead>Fecha</TableHead><TableHead>Insumo</TableHead><TableHead>Folio</TableHead>
-                  <TableHead className="text-right">Cantidad</TableHead><TableHead className="text-right">Monto</TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {[...rows].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-xs">{fdate(r.date)}</TableCell>
-                      <TableCell className="text-xs">{r.supply_item_name || r.supply_name || '—'}</TableCell>
-                      <TableCell className="text-xs">{r.invoice_number || '—'}</TableCell>
-                      <TableCell className="text-right text-xs">{r.quantity_purchased ? `${r.quantity_purchased} ${r.unit_of_measure || ''}` : '—'}</TableCell>
-                      <TableCell className="text-right text-xs font-semibold">{clp(r.total_cost)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+    <div className="bg-gray-50/70 border-t border-gray-100 px-5 py-3 space-y-3">
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-gray-500 py-6 justify-center"><Loader2 className="w-5 h-5 animate-spin" /> Cargando…</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <MiniStat label="RUT" value={taxId || '—'} />
+            <MiniStat label="Facturas / Insumos" value={`${rows.length} / ${items.length}`} />
+            <MiniStat label="Total comprado" value={clp(total)} highlight />
+          </div>
+          <div className="max-h-80 overflow-y-auto border rounded-lg bg-white">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Fecha</TableHead><TableHead>Insumo</TableHead><TableHead>Folio</TableHead>
+                <TableHead className="text-right">Cantidad</TableHead><TableHead className="text-right">Monto</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {[...rows].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-xs">{fdate(r.date)}</TableCell>
+                    <TableCell className="text-xs">{r.supply_item_name || r.supply_name || '—'}</TableCell>
+                    <TableCell className="text-xs">{r.invoice_number || '—'}</TableCell>
+                    <TableCell className="text-right text-xs">{r.quantity_purchased ? `${r.quantity_purchased} ${r.unit_of_measure || ''}` : '—'}</TableCell>
+                    <TableCell className="text-right text-xs font-semibold">{clp(r.total_cost)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -922,7 +912,7 @@ function PorInsumos({ rid }) {
 function PorProveedor({ rid }) {
   const { data: costs = [], isLoading } = useComprasCosts(rid);
   const [search, setSearch] = useState('');
-  const [sel, setSel] = useState(null);
+  const [expanded, setExpanded] = useState(null);
 
   const provs = useMemo(() => {
     const map = {};
@@ -960,22 +950,36 @@ function PorProveedor({ rid }) {
             <TableHead className="text-right">Insumos</TableHead><TableHead>Última compra</TableHead><TableHead className="text-right">Total comprado</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {filtered.map((p) => (
-              <TableRow key={p.name} className="hover:bg-noa-orange/5 cursor-pointer" onClick={() => setSel(p.name)}>
-                <TableCell className="font-medium">
-                  <span className="text-noa-orange-dk hover:underline inline-flex items-center gap-1">{p.name} <ChevronRight className="w-3 h-3 text-gray-300" /></span>
-                </TableCell>
-                <TableCell className="text-xs">{p.taxId || '—'}</TableCell>
-                <TableCell className="text-right text-xs">{p.compras}</TableCell>
-                <TableCell className="text-right text-xs">{p.items}</TableCell>
-                <TableCell className="text-xs">{fdate(p.lastDate)}</TableCell>
-                <TableCell className="text-right text-xs font-semibold">{clp(p.total)}</TableCell>
-              </TableRow>
-            ))}
+            {filtered.map((p) => {
+              const isOpen = expanded === p.name;
+              return (
+                <React.Fragment key={p.name}>
+                  <TableRow className="hover:bg-noa-orange/5 cursor-pointer" onClick={() => setExpanded(isOpen ? null : p.name)}>
+                    <TableCell className="font-medium">
+                      <span className="text-noa-orange-dk hover:underline inline-flex items-center gap-1">
+                        {p.name}
+                        <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs">{p.taxId || '—'}</TableCell>
+                    <TableCell className="text-right text-xs">{p.compras}</TableCell>
+                    <TableCell className="text-right text-xs">{p.items}</TableCell>
+                    <TableCell className="text-xs">{fdate(p.lastDate)}</TableCell>
+                    <TableCell className="text-right text-xs font-semibold">{clp(p.total)}</TableCell>
+                  </TableRow>
+                  {isOpen && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="p-0">
+                        <ProveedorComprasInline proveedor={p.name} rid={rid} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
-      {sel && <ProveedorComprasModal proveedor={sel} rid={rid} onClose={() => setSel(null)} />}
     </div>
   );
 }

@@ -13,10 +13,9 @@ import { Switch } from "@/components/ui/switch";
 import { formatCurrency } from '@/components/utils/currencyHelper';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Modal de detalle al pinchar un ítem (insumo o gasto): muestra proveedores,
+// Detalle INLINE (desplegable, no modal) al pinchar un ítem: proveedores,
 // facturas y todo el detalle desde SupplyCost (insumos) u OpEx (costos).
-function ItemDetailModal({ item, currency, onClose }) {
-  const { kind, name } = item;
+function ItemDetailInline({ kind, name, currency }) {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['item-detail', kind, name],
     queryFn: async () => {
@@ -44,43 +43,40 @@ function ItemDetailModal({ item, currency, onClose }) {
   const proveedores = [...new Set(rows.map((r) => r.supplier).filter(Boolean))];
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl font-sans">
-        <DialogHeader><DialogTitle className="font-display text-noa-navy flex items-center gap-2"><Building2 className="w-5 h-5 text-noa-orange" /> {name}</DialogTitle></DialogHeader>
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-gray-500 py-8 justify-center"><Loader2 className="w-5 h-5 animate-spin" /> Cargando detalle…</div>
-        ) : rows.length === 0 ? (
-          <p className="text-sm text-gray-500 py-8 text-center">No hay facturas/gastos registrados para "{name}".</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-3 gap-3 mb-2">
-              <div className="rounded-lg border p-3"><p className="text-xs text-gray-500">Documentos</p><p className="text-lg font-bold text-noa-navy">{rows.length}</p></div>
-              <div className="rounded-lg border p-3"><p className="text-xs text-gray-500">Proveedores</p><p className="text-lg font-bold text-noa-navy">{proveedores.length || '—'}</p></div>
-              <div className="rounded-lg border p-3 bg-noa-orange/5"><p className="text-xs text-gray-500">Total</p><p className="text-lg font-bold text-noa-navy">{formatCurrency(total, currency)}</p></div>
-            </div>
-            <div className="max-h-80 overflow-y-auto border rounded-lg">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 sticky top-0"><tr className="text-left text-xs text-gray-500">
-                  <th className="py-2 px-3">Fecha</th><th className="py-2 px-3">Proveedor</th><th className="py-2 px-3">Folio</th>
-                  <th className="py-2 px-3 text-right">Cantidad</th><th className="py-2 px-3 text-right">Monto</th>
-                </tr></thead>
-                <tbody className="divide-y">
-                  {rows.sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="py-2 px-3 text-xs">{fdate(r.date)}</td>
-                      <td className="py-2 px-3 text-xs">{r.supplier || (kind === 'opex' ? (r.cost_center_name || '—') : '—')}</td>
-                      <td className="py-2 px-3 text-xs">{r.invoice_number || '—'}</td>
-                      <td className="py-2 px-3 text-xs text-right">{r.quantity_purchased ? `${r.quantity_purchased} ${r.unit_of_measure || ''}` : '—'}</td>
-                      <td className="py-2 px-3 text-xs text-right font-semibold">{formatCurrency(Number(r.total_cost) || Number(r.amount) || 0, currency)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+    <div className="bg-gray-50/70 border-t border-gray-100 px-5 py-3">
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-gray-500 py-3 text-xs"><Loader2 className="w-4 h-4 animate-spin" /> Cargando detalle…</div>
+      ) : rows.length === 0 ? (
+        <p className="text-xs text-gray-500 py-3">Sin facturas/gastos registrados para "{name}".</p>
+      ) : (
+        <>
+          <div className="flex items-center gap-4 mb-2 text-[11px] text-gray-500">
+            <span>{rows.length} documentos</span>
+            {proveedores.length > 0 && <span>{proveedores.length} proveedor(es): {proveedores.slice(0, 3).join(', ')}{proveedores.length > 3 ? '…' : ''}</span>}
+            <span className="ml-auto font-semibold text-noa-navy">Total {formatCurrency(total, currency)}</span>
+          </div>
+          <div className="max-h-64 overflow-y-auto rounded-lg border bg-white">
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50 sticky top-0"><tr className="text-left text-gray-500">
+                <th className="py-1.5 px-3">Fecha</th><th className="py-1.5 px-3">Proveedor</th><th className="py-1.5 px-3">Folio</th>
+                <th className="py-1.5 px-3 text-right">Cantidad</th><th className="py-1.5 px-3 text-right">Monto</th>
+              </tr></thead>
+              <tbody className="divide-y">
+                {rows.sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="py-1.5 px-3">{fdate(r.date)}</td>
+                    <td className="py-1.5 px-3">{r.supplier || (kind === 'opex' ? (r.cost_center_name || '—') : '—')}</td>
+                    <td className="py-1.5 px-3">{r.invoice_number || '—'}</td>
+                    <td className="py-1.5 px-3 text-right">{r.quantity_purchased ? `${r.quantity_purchased} ${r.unit_of_measure || ''}` : '—'}</td>
+                    <td className="py-1.5 px-3 text-right font-semibold">{formatCurrency(Number(r.total_cost) || Number(r.amount) || 0, currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -212,25 +208,29 @@ function SubRow({ name, amount, percent, comparisonPercent, showComparison, curr
 }
 
 // ─── Fila de ítem (nivel más bajo, dentro de categoría) ───
-function ItemRow({ name, amount, percent, currency, indent = 8, onClick }) {
+function ItemRow({ name, amount, percent, currency, indent = 8, kind }) {
+  const [open, setOpen] = useState(false);
+  const clickable = !!kind;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      className={`w-full flex items-center justify-between px-4 sm:px-5 py-2 transition-colors ${onClick ? 'hover:bg-noa-orange/10 cursor-pointer' : 'hover:bg-white/80 cursor-default'}`}
-    >
-      <div className="flex items-center gap-2 min-w-0" style={{ paddingLeft: `${indent * 4}px` }}>
-        <span className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0" />
-        <span className={`text-xs truncate ${onClick ? 'text-noa-orange-dk hover:underline' : 'text-gray-600'}`}>{name}</span>
-        {onClick && <ChevronRight className="w-3 h-3 text-gray-300 flex-shrink-0" />}
-      </div>
-      <div className="flex items-center gap-3 sm:gap-5 flex-shrink-0">
-        <span className="font-mono text-xs text-gray-600 w-20 sm:w-24 text-right">{formatCurrency(amount, currency)}</span>
-        <span className="font-mono text-xs text-gray-400 w-14 text-right hidden sm:block">{percent.toFixed(1)}%</span>
-        <div className="w-16 sm:w-20" />
-      </div>
-    </button>
+    <div>
+      <button
+        type="button"
+        onClick={() => clickable && setOpen((o) => !o)}
+        disabled={!clickable}
+        className={`w-full flex items-center justify-between px-4 sm:px-5 py-2 transition-colors ${clickable ? 'hover:bg-noa-orange/10 cursor-pointer' : 'hover:bg-white/80 cursor-default'}`}
+      >
+        <div className="flex items-center gap-2 min-w-0" style={{ paddingLeft: `${indent * 4}px` }}>
+          {clickable ? (open ? <ChevronDown className="w-3 h-3 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-gray-300 flex-shrink-0" />) : <span className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0" />}
+          <span className={`text-xs truncate ${clickable ? 'text-noa-orange-dk hover:underline' : 'text-gray-600'}`}>{name}</span>
+        </div>
+        <div className="flex items-center gap-3 sm:gap-5 flex-shrink-0">
+          <span className="font-mono text-xs text-gray-600 w-20 sm:w-24 text-right">{formatCurrency(amount, currency)}</span>
+          <span className="font-mono text-xs text-gray-400 w-14 text-right hidden sm:block">{percent.toFixed(1)}%</span>
+          <div className="w-16 sm:w-20" />
+        </div>
+      </button>
+      {clickable && open && <ItemDetailInline kind={kind} name={name} currency={currency} />}
+    </div>
   );
 }
 
@@ -356,7 +356,6 @@ export default function IncomeStatementView({
   proforma,
 }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [detail, setDetail] = useState(null); // { kind:'supply'|'opex', name }
   const [isClean, setIsClean] = useState(false);
   const normalizedSearch = searchTerm.toLowerCase().trim();
   const isSearching = normalizedSearch.length > 0;
@@ -387,7 +386,6 @@ export default function IncomeStatementView({
 
   return (
     <>
-    {detail && <ItemDetailModal item={detail} currency={currency} onClose={() => setDetail(null)} />}
     <Card className={`border-0 shadow-xl overflow-hidden rounded-2xl ${isClean ? 'bg-slate-50/80' : 'bg-white'}`}>
       {/* Header */}
       <div className={`px-4 sm:px-6 py-4 ${isClean ? 'bg-gradient-to-r from-slate-100 to-gray-100 border-b border-slate-200' : 'bg-gradient-to-r from-slate-800 to-slate-900'}`}>
@@ -537,7 +535,7 @@ export default function IncomeStatementView({
                       amount={itemData.total}
                       percent={totalIncome > 0 ? (itemData.total / totalIncome) * 100 : 0}
                       currency={currency}
-                      onClick={() => setDetail({ kind: 'supply', name: itemName })}
+                      kind="supply"
                     />
                   ))}
                 </SubRow>
@@ -644,7 +642,7 @@ export default function IncomeStatementView({
                             percent={totalIncome > 0 ? (itemData.total / totalIncome) * 100 : 0}
                             currency={currency}
                             indent={12}
-                            onClick={() => setDetail({ kind: 'opex', name: itemName })}
+                            kind="opex"
                           />
                         ))}
                       </CategoryRow>

@@ -194,14 +194,40 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
     }));
   }, [opexByType, M]);
 
-  // Eficiencia global lineal vs utilidad objetivo:
-  // margen = utilObjetivo (15%) → 100% · margen 0% → 0% · margen -utilObjetivo → -100%
-  const eficiencia = useMemo(() => {
-    const base = UTIL_OBJETIVO || 15;
-    const e = (M.margenNeto / base) * 100;
-    return Math.round(Math.max(-100, Math.min(100, e)));
-  }, [M, UTIL_OBJETIVO]);
-  const eficienciaColor = eficiencia >= 66 ? '#16A34A' : eficiencia >= 33 ? '#F59E0B' : '#DC2626';
+  // ── NOA SCORE (HORECA): Food Cost + Labor Cost + OPEX + Tendencia ──
+  // Benchmarks: Food 30%, Labor 30%, OPEX 25%. Pesos: OPEX 40, Food 25, Labor 20, Tendencia 15.
+  const noa = useMemo(() => {
+    const BM = { food: 30, labor: 30, opex: 25 };
+    const ventaNeta = (M.ventaAcum || 0) / 1.19;
+    const payroll = Object.entries(opexByType).filter(([t]) => t === 'payroll').reduce((a, [, v]) => a + v, 0);
+    const foodCostPct = M.ratioCompraVenta;                                  // compra / venta
+    const laborCostPct = ventaNeta > 0 ? (payroll / ventaNeta) * 100 : 0;    // RRHH / venta neta
+    const opexPct = ventaNeta > 0 ? (M.opexTotal / ventaNeta) * 100 : 0;     // OPEX / venta neta
+    const sc = (real, bm) => { const d = ((real - bm) / bm) * 100; return d <= 0 ? 100 : Math.max(0, 100 - d); };
+    const sFood = sc(foodCostPct, BM.food), sLabor = sc(laborCostPct, BM.labor), sOpex = sc(opexPct, BM.opex);
+    const sTrend = 70; // neutral: sin histórico de score persistido (MVP)
+    const P = { opex: 0.40, food: 0.25, labor: 0.20, trend: 0.15 };
+    const score = Math.round(sOpex * P.opex + sFood * P.food + sLabor * P.labor + sTrend * P.trend);
+    const zona = score < 50 ? 'riesgo_alto' : score < 70 ? 'riesgo_medio' : 'saludable';
+    const driver = [
+      { n: 'OPEX', p: (100 - sOpex) * P.opex },
+      { n: 'Food cost', p: (100 - sFood) * P.food },
+      { n: 'Labor cost', p: (100 - sLabor) * P.labor },
+    ].sort((a, b) => b.p - a.p)[0].n;
+    return { score, zona, driver, foodCostPct, laborCostPct, opexPct, BM };
+  }, [M, opexByType]);
+  const noaColor = noa.zona === 'saludable' ? '#16A34A' : noa.zona === 'riesgo_medio' ? '#F59E0B' : '#DC2626';
+  const noaLabel = noa.zona === 'saludable' ? 'Saludable' : noa.zona === 'riesgo_medio' ? 'Atención' : 'Riesgo';
+  // Resumen textual del score
+  const noaResumen = useMemo(() => {
+    const op = noa.opexPct, fc = noa.foodCostPct;
+    const opDelta = (op - noa.BM.opex).toFixed(0);
+    const partes = [];
+    partes.push(`OPEX en ${op.toFixed(0)}% sobre venta — ${opDelta}pp ${op > noa.BM.opex ? 'sobre' : 'bajo'} benchmark (${noa.BM.opex}%).`);
+    partes.push(`Food cost ${fc <= noa.BM.food ? 'saludable' : 'sobre rango'} (${fc.toFixed(0)}%).`);
+    partes.push(M.margenNeto >= 0 ? 'Margen positivo.' : 'Margen negativo, revisar costos.');
+    return partes.join(' ');
+  }, [noa, M]);
 
   // Alertas de precio: comparar último vs penúltimo precio por insumo
   const priceAlerts = useMemo(() => {
@@ -230,13 +256,32 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Botón Actualizar (sincroniza ventas reales de Fudo) */}
-      <div className="flex justify-end">
+      {/* Leyenda de zonas + botón Actualizar */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-4 text-xs text-gray-600">
+          <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-600" /> Favorable</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500" /> Atención</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-600" /> Desfavorable</span>
+        </div>
         <Button onClick={actualizar} disabled={syncing || fudoFetching} variant="outline" size="sm">
           {(syncing || fudoFetching) ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
           {(syncing || fudoFetching) ? 'Actualizando…' : 'Actualizar'}
         </Button>
       </div>
+
+      {/* Resumen NOA Score */}
+      <Card className="bg-noa-navy text-white border-0">
+        <CardContent className="pt-5">
+          <div className="flex items-center gap-5 flex-wrap">
+            <Donut value={noa.score} label="" color={noaColor} size={96} />
+            <div className="flex-1 min-w-[240px]">
+              <p className="text-xs text-white/60">NOA Score</p>
+              <p className="text-xl font-bold font-display" style={{ color: noaColor }}>{noaLabel}</p>
+              <p className="text-sm text-white/80 mt-1">{noaResumen}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Fila superior: Venta Neta + Meta mensual / Eficiencia Global */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -277,84 +322,64 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
         </CardContent>
       </Card>
 
-      {/* Eficiencia Global (arriba) */}
+      {/* NOA Score (arriba) */}
       <Card><CardContent className="pt-6 flex flex-col items-center justify-center h-full">
-        <Donut value={eficiencia} label="" color={eficienciaColor} size={140} />
-        <p className="text-sm font-bold text-noa-navy mt-2 font-display">EFICIENCIA GLOBAL</p>
-        <p className="text-xs text-gray-500 text-center">Utilidad {M.margenNeto.toFixed(1)}% vs objetivo {UTIL_OBJETIVO}%</p>
+        <Donut value={noa.score} label="" color={noaColor} size={140} />
+        <p className="text-sm font-bold text-noa-navy mt-2 font-display">NOA Score</p>
+        <p className="text-sm font-semibold" style={{ color: noaColor }}>{noaLabel}</p>
+        <p className="text-[11px] text-gray-500 text-center mt-1">Driver: {noa.driver}</p>
       </CardContent></Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Columna izquierda: VENTA / COMPRA / UTILIDAD */}
-        <div className="lg:col-span-2 space-y-5">
-          <MetricRow icon={TrendingUp} title="VENTA" color="#0C1B33"
-            cols={[
-              { icon: Sun, label: 'Hoy', value: clp(M.ventaHoy), tag: M.ventaHoy >= M.ventaDiaProm ? 'Sobre promedio' : 'Bajo promedio', tagOk: M.ventaHoy >= M.ventaDiaProm, foot: 'vs promedio diario', barPct: M.ventaDiaProm > 0 ? Math.min(100, M.ventaHoy / M.ventaDiaProm * 100) : 0 },
-              { icon: CalendarDays, label: `Acumulada (${M.diasAcum} días)`, value: clp(M.ventaAcum), tag: 'En curso', tagOk: true, foot: '% del mes', barPct: M.diasAcum / daysInMonth * 100 },
-              { icon: Flag, label: 'Proyectada fin de mes', value: clp(M.ventaProj), tag: `${clpK(M.ventaDiaProm)}/día prom.`, tagOk: true, foot: 'proyección', barPct: M.diasAcum / daysInMonth * 100 },
-            ]} />
+      {/* KPIS: Venta / Compra / OPEX / Utilidad — cada uno Hoy / Acum / Proyectado */}
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">KPIs</p>
+      <div className="space-y-5">
+        <MetricRow icon={TrendingUp} title="VENTA" subtitle={`en línea con el ritmo del mes (${(M.diasAcum / daysInMonth * 100).toFixed(0)}%)`} subColor="#16A34A" barColor="#16A34A"
+          cols={[
+            { icon: Sun, label: 'Hoy', value: clp(M.ventaHoy), barPct: M.ventaDiaProm > 0 ? Math.min(100, M.ventaHoy / M.ventaDiaProm * 100) : 0 },
+            { icon: CalendarDays, label: `Acum. ${M.diasAcum} días`, value: clp(M.ventaAcum), barPct: M.diasAcum / daysInMonth * 100 },
+            { icon: Flag, label: 'Proyectado', value: clp(M.ventaProj), barPct: 100 },
+          ]} />
 
-          <MetricRow icon={ShoppingCart} title="COMPRA" color="#0C1B33"
-            cols={[
-              { icon: Sun, label: 'Hoy', value: clp(M.compraHoy), tag: `${(M.ventaHoy > 0 ? M.compraHoy / M.ventaHoy * 100 : 0).toFixed(0)}% sobre venta`, tagOk: true, foot: 'ratio compra/venta hoy', barPct: M.ratioCompraVenta },
-              { icon: CalendarDays, label: `Acumulada (${M.diasAcum} días)`, value: clp(M.compraAcum), tag: `${M.ratioCompraVenta.toFixed(0)}% sobre venta`, tagOk: true, foot: 'ratio compra/venta', barPct: M.ratioCompraVenta },
-              { icon: Flag, label: 'Proyectada fin de mes', value: clp(M.compraProj), tag: `Ratio ${M.ratioCompraVenta.toFixed(0)}%`, tagOk: true, foot: 'ratio compra/venta', barPct: M.ratioCompraVenta },
-            ]} />
+        <MetricRow icon={ShoppingCart} title="COMPRA"
+          subtitle={`${M.ratioCompraVenta.toFixed(0)}% sobre venta, ${M.ratioCompraVenta <= 30 ? 'dentro de rango' : 'sobre benchmark (30%)'}`}
+          subColor={M.ratioCompraVenta <= 30 ? '#16A34A' : '#F59E0B'} barColor={M.ratioCompraVenta <= 30 ? '#16A34A' : '#F59E0B'}
+          cols={[
+            { icon: Sun, label: 'Hoy', value: clp(M.compraHoy), barPct: Math.min(100, M.ratioCompraVenta / 30 * 100) },
+            { icon: CalendarDays, label: `Acum. ${M.diasAcum} días`, value: clp(M.compraAcum), barPct: Math.min(100, M.ratioCompraVenta / 30 * 100) },
+            { icon: Flag, label: 'Proyectado', value: clp(M.compraProj), barPct: Math.min(100, M.ratioCompraVenta / 30 * 100) },
+          ]} />
 
-          {/* UTILIDAD NETA ESTIMADA — solo proyectada mensual + tendencia 3 meses */}
-          <div>
-            <p className="text-xs font-semibold text-gray-500 flex items-center gap-1.5 mb-2 uppercase tracking-wide"><Wallet className="w-3.5 h-3.5" /> UTILIDAD NETA ESTIMADA</p>
-            <Card className="border-t-2" style={{ borderTopColor: '#F59E0B' }}>
-              <CardContent className="pt-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                  <div>
-                    <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1"><Flag className="w-3.5 h-3.5" /> Proyectada fin de mes</div>
-                    <p className="text-2xl font-bold text-noa-navy font-display">{clp(M.utilProj)}</p>
-                    <span className={`inline-block text-[11px] px-2 py-0.5 rounded-full mt-1 ${M.utilProj >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                      Margen neto {M.margenProj.toFixed(0)}% · objetivo {UTIL_OBJETIVO}%
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-gray-400 mb-1 text-right">Tendencia últimos 3 meses (venta neta)</p>
-                    <ResponsiveContainer width="100%" height={90}>
-                      <BarChart data={tendencia3m}>
-                        <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                        <Bar dataKey="neto" radius={[4, 4, 0, 0]}>
-                          {tendencia3m.map((_, i) => <Cell key={i} fill={i === tendencia3m.length - 1 ? '#F59E0B' : '#0C1B33'} />)}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        <MetricRow icon={Wallet} title="OPEX"
+          subtitle={`${noa.opexPct.toFixed(0)}% sobre venta, ${(noa.opexPct - 25).toFixed(0)}pp ${noa.opexPct > 25 ? 'sobre' : 'bajo'} benchmark (25%)`}
+          subColor={noa.opexPct <= 25 ? '#16A34A' : '#F59E0B'} barColor={noa.opexPct <= 25 ? '#16A34A' : '#F59E0B'}
+          cols={[
+            { icon: Sun, label: 'Hoy', value: clp(M.opexDiario), barPct: Math.min(100, noa.opexPct / 25 * 100) },
+            { icon: CalendarDays, label: `Acum. ${M.diasAcum} días`, value: clp(M.opexDiario * M.diasAcum), barPct: Math.min(100, noa.opexPct / 25 * 100) },
+            { icon: Flag, label: 'Proyectado', value: clp(M.opexTotal), barPct: Math.min(100, noa.opexPct / 25 * 100) },
+          ]} />
 
-        {/* Columna derecha: OPEX */}
-        <Card className="h-fit">
-          <CardContent className="pt-5">
-            <p className="text-sm font-semibold text-noa-navy flex items-center gap-1.5 mb-1"><Wallet className="w-4 h-4" /> OPEX — GASTOS OPERACIONALES</p>
-            <p className="text-[11px] text-gray-500 mb-4">Calculados sobre venta proyectada · distribuidos en 30 días</p>
-            <div className="grid grid-cols-2 gap-4">
-              {opexCats.map((o) => (
-                <div key={o.name} className="flex flex-col items-center">
-                  <Donut value={o.pctVenta} color={o.color} size={86} />
-                  <p className="text-xs font-semibold text-noa-navy mt-1 text-center">{o.name}</p>
-                  <p className="text-[10px] text-gray-500">{clpK(o.diario)}/día</p>
-                  <p className="text-[10px] text-gray-400">{clpK(o.amt)}/mes</p>
-                </div>
-              ))}
-            </div>
-            <div className="border-t mt-4 pt-3 flex items-center justify-between">
-              <div><p className="text-[11px] text-gray-500">OPEX diario (promedio)</p><p className="font-bold text-noa-navy">{clp(M.opexDiario)}</p></div>
-              <div className="text-right"><p className="text-[11px] text-gray-500">% sobre venta</p><p className="font-bold text-noa-orange-dk">{M.opexSobreVenta.toFixed(0)}%</p></div>
-            </div>
-            <div className="border-t mt-3 pt-3">
-              <p className="text-[11px] text-gray-500">Total OPEX mensual proyectado</p>
-              <p className="text-xl font-bold text-noa-navy font-display">{clp(M.opexTotal)}</p>
-            </div>
+        <MetricRow icon={TrendingUp} title="UTILIDAD NETA"
+          subtitle={`${M.margenNeto >= 0 ? 'margen positivo' : 'margen negativo'} ${M.margenNeto.toFixed(1)}%`}
+          subColor={M.margenNeto >= 0 ? '#16A34A' : '#DC2626'} barColor={M.margenNeto >= 0 ? '#16A34A' : '#DC2626'}
+          cols={[
+            { icon: Sun, label: 'Hoy', value: clp(M.utilHoy), barPct: Math.max(0, Math.min(100, M.margenHoy / UTIL_OBJETIVO * 100)) },
+            { icon: CalendarDays, label: `Acum. ${M.diasAcum} días`, value: clp(M.utilAcum), barPct: Math.max(0, Math.min(100, M.margenNeto / UTIL_OBJETIVO * 100)) },
+            { icon: Flag, label: 'Proyectado', value: clp(M.utilProj), barPct: Math.max(0, Math.min(100, M.margenProj / UTIL_OBJETIVO * 100)) },
+          ]} />
+
+        {/* Tendencia 3 meses */}
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-[11px] text-gray-400 mb-1">Tendencia últimos 3 meses (venta neta)</p>
+            <ResponsiveContainer width="100%" height={90}>
+              <BarChart data={tendencia3m}>
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Bar dataKey="neto" radius={[4, 4, 0, 0]}>
+                  {tendencia3m.map((_, i) => <Cell key={i} fill={i === tendencia3m.length - 1 ? '#F59E0B' : '#0C1B33'} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
@@ -411,7 +436,7 @@ function EditMetaDialog({ cfg, onClose, onSave }) {
           <div className="space-y-1">
             <label className="text-sm text-gray-600">Utilidad objetivo (%)</label>
             <Input type="number" value={utilPct} onChange={(e) => setUtilPct(e.target.value)} />
-            <p className="text-[11px] text-gray-400">La eficiencia global y todas las metas se rigen por este %.</p>
+            <p className="text-[11px] text-gray-400">La meta diaria/mensual se rige por este objetivo de utilidad.</p>
           </div>
           <div className="space-y-1">
             <label className="text-sm text-gray-600">Meta mensual de venta (CLP)</label>
@@ -428,31 +453,30 @@ function EditMetaDialog({ cfg, onClose, onSave }) {
   );
 }
 
-function MetricRow({ icon: Icon, title, cols, color }) {
+function MetricRow({ icon: Icon, title, subtitle, subColor = '#16A34A', barColor = '#0C1B33', cols }) {
   return (
-    <div>
-      <p className="text-xs font-semibold text-gray-500 flex items-center gap-1.5 mb-2 uppercase tracking-wide"><Icon className="w-3.5 h-3.5" /> {title}</p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {cols.map((c, i) => {
-          const CI = c.icon;
-          return (
-            <Card key={i} className={c.accent ? 'border-t-2' : ''} style={c.accent ? { borderTopColor: '#F59E0B' } : {}}>
-              <CardContent className="pt-4">
+    <Card>
+      <CardContent className="pt-4">
+        <p className="text-sm font-semibold text-noa-navy flex items-center gap-1.5 mb-3">
+          <Icon className="w-4 h-4 text-noa-orange" /> {title}
+          {subtitle && <span className="font-normal text-xs" style={{ color: subColor }}>· {subtitle}</span>}
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {cols.map((c, i) => {
+            const CI = c.icon;
+            return (
+              <div key={i}>
                 <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1"><CI className="w-3.5 h-3.5" /> {c.label}</div>
-                <p className="text-lg font-bold text-noa-navy font-display">{c.value}</p>
-                <span className={`inline-block text-[11px] px-2 py-0.5 rounded-full mt-1 ${c.tagOk ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{c.tag}</span>
-                <div className="flex items-center justify-between mt-2 text-[10px] text-gray-400">
-                  <span>{c.foot}</span><span>{Math.round(c.barPct)}%</span>
+                <p className="text-xl font-bold text-noa-navy font-display">{c.value}</p>
+                <div className="h-1.5 rounded-full bg-gray-100 mt-2 overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(3, Math.min(100, c.barPct))}%`, backgroundColor: barColor }} />
                 </div>
-                <div className="h-1 rounded-full bg-gray-100 mt-1 overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, c.barPct)}%`, backgroundColor: c.accent ? '#F59E0B' : '#0C1B33' }} />
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-    </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

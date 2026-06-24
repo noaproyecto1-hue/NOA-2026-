@@ -22,7 +22,8 @@ import {
   Layers,
   FlaskConical,
   Upload,
-  ShoppingBag
+  BookOpen,
+  Gauge
 } from "lucide-react";
 import RestaurantSelector from '../components/dashboard/RestaurantSelector';
 import SelectRestaurantDialog from '../components/dialogs/SelectRestaurantDialog';
@@ -32,7 +33,8 @@ import RecipeImportDialog from '../components/import/RecipeImportDialog';
 import RestaurantPickerOnEntry from '@/components/dialogs/RestaurantPickerOnEntry';
 import WeeklySamplingPanel from '@/components/kitchen/WeeklySamplingPanel';
 
-import MenuCombosPanel from '@/components/kitchen/MenuCombosPanel';
+import CartaPanel from '@/components/kitchen/CartaPanel';
+import RendimientosPanel from '@/components/kitchen/RendimientosPanel';
 import KitchenWasteTab from '@/components/kitchen/KitchenWasteTab';
 import { getSelectedCurrency, formatCurrency } from '../components/utils/currencyHelper';
 import { getYieldAdjustedCost } from '../components/utils/yieldCostHelper';
@@ -53,7 +55,7 @@ export default function Recipes() {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [selectRestaurantDialog, setSelectRestaurantDialog] = useState(false);
   const [targetRestaurantId, setTargetRestaurantId] = useState(null);
-  const [activeTab, setActiveTab] = useState('menus');
+  const [activeTab, setActiveTab] = useState('carta');
   const [showImportDialog, setShowImportDialog] = useState(false);
   const queryClient = useQueryClient();
 
@@ -110,6 +112,16 @@ export default function Recipes() {
     mutationFn: (id) => base44.entities.Recipe.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['myRecipes'] })
   });
+
+  // Sincronización Carta → Receta: al editar un precio en la carta, si existe una
+  // receta con el mismo nombre se actualiza su precio de venta (Prompt 13).
+  const updateRecipePrice = (dishName, price) => {
+    const target = recipes.find(r => r.dish_name?.trim().toLowerCase() === dishName.trim().toLowerCase());
+    if (!target || !target.id) return;
+    base44.entities.Recipe.update(target.id, { sale_price: price })
+      .then(() => queryClient.invalidateQueries({ queryKey: ['myRecipes'] }))
+      .catch(() => {});
+  };
 
   const userRestaurants = accessibleRestaurants;
   const selectedCurrency = getSelectedCurrency(selectedRestaurant, userRestaurants);
@@ -223,7 +235,7 @@ export default function Recipes() {
               </div>
               <div>
                 <h1 className="text-2xl lg:text-4xl font-bold text-white tracking-tight">Cocina</h1>
-                <p className="text-white/70 mt-1">Recetas, muestreos y preparación</p>
+                <p className="text-white/70 mt-1">Carta, rendimientos, recetas y preparación</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -260,8 +272,11 @@ export default function Recipes() {
         {/* Sub-tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-white/80 backdrop-blur-sm shadow-lg border-0 p-1.5 rounded-2xl flex-wrap">
-            <TabsTrigger value="menus" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
-              <ShoppingBag className="w-4 h-4" /> <span className="hidden sm:inline">Menús</span>
+            <TabsTrigger value="carta" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+              <BookOpen className="w-4 h-4" /> Carta
+            </TabsTrigger>
+            <TabsTrigger value="rendimientos" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+              <Gauge className="w-4 h-4" /> <span className="hidden sm:inline">Rendimientos</span>
             </TabsTrigger>
             <TabsTrigger value="recipes" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <ChefHat className="w-4 h-4" /> Recetas
@@ -338,10 +353,11 @@ export default function Recipes() {
           />
         </div>
 
-        {/* Recipes Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <AnimatePresence>
-            {filteredRecipes.map((recipe) => {
+        {/* Recetas: Principales + Subrecetas (Prompt 16) */}
+        {(() => {
+          const principales = filteredRecipes.filter((r) => !r.is_sub_recipe);
+          const subrecetas = filteredRecipes.filter((r) => r.is_sub_recipe);
+          const renderRecipeCard = (recipe) => {
               const cost = calculateRecipeCost(recipe);
               const margin = recipe.sale_price > 0 
                 ? ((recipe.sale_price - cost) / recipe.sale_price) * 100 
@@ -479,9 +495,33 @@ export default function Recipes() {
                   </Card>
                 </motion.div>
               );
-            })}
-          </AnimatePresence>
-        </div>
+          };
+          return (
+            <div className="space-y-8">
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="text-lg font-bold text-gray-900">Recetas Principales</h3>
+                  <Badge variant="outline" className="bg-orange-50 border-orange-200 text-orange-700">{principales.length}</Badge>
+                </div>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <AnimatePresence>{principales.map(renderRecipeCard)}</AnimatePresence>
+                </div>
+              </section>
+              {subrecetas.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 pt-4 border-t border-gray-200">
+                    <Layers className="w-5 h-5 text-purple-600" />
+                    <h3 className="text-lg font-bold text-gray-900">Subrecetas</h3>
+                    <Badge className="bg-purple-100 text-purple-700 border-0">{subrecetas.length}</Badge>
+                  </div>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <AnimatePresence>{subrecetas.map(renderRecipeCard)}</AnimatePresence>
+                  </div>
+                </section>
+              )}
+            </div>
+          );
+        })()}
 
         {filteredRecipes.length === 0 && (
           <div className="text-center py-12 text-gray-500">
@@ -517,11 +557,12 @@ export default function Recipes() {
             />
           </TabsContent>
 
-          <TabsContent value="menus" className="mt-4">
-            <MenuCombosPanel
-              restaurant={selectedRestaurant !== 'all' ? userRestaurants.find(r => r.id === selectedRestaurant) : userRestaurants[0]}
-              recipes={filteredRecipes}
-            />
+          <TabsContent value="carta" className="mt-4">
+            <CartaPanel onUpdateRecipePrice={updateRecipePrice} />
+          </TabsContent>
+
+          <TabsContent value="rendimientos" className="mt-4">
+            <RendimientosPanel supplyItems={filteredSupplyItems} />
           </TabsContent>
         </Tabs>
       </div>

@@ -14,6 +14,24 @@ function loadDashCfg() {
   catch { return { utilPct: 15, metaMensual: 10000000 }; }
 }
 
+// ── MODO PRESENTACIÓN — Dataset demo "Casa Mediterránea" (PDF CAMBIOS_REV4) ──
+// Números fijos para la presentación del día 26/30. Coherencia verificada:
+// 61.100.000 − 19.552.000 − 16.191.500 − 17.719.000 = 7.637.500 ✓
+const DEMO_MODE = true;
+const DEMO_CASA = {
+  periodo: 'Junio 2026 · Día 26 de 30',
+  diasAcum: 26, diasMes: 30,
+  metaMensual: 70000000, metaDiaria: 2333333, utilPct: 10,
+  ventaHoy: 2333333, ventaAcum: 61100000, ventaProj: 70500000, ventaDiaProm: 2350000,
+  compraHoy: 746667, compraAcum: 19552000, compraProj: 22560000, ratioCompraVenta: 32,
+  opexHoy: 619167, opexAcum: 16191500, opexProj: 18682500, opexPct: 26.5,
+  utilHoy: 368500, utilAcum: 7637500, utilProj: 8812500, margenHoy: 15.8, margenNeto: 12.5, margenProj: 12.5,
+  ventaNetaHoy: { neto: 2333333, bruto: 2618132, count: 104, hasFudo: true },
+  noa: { score: 76, zona: 'riesgo_medio', driver: 'OPEX', foodCostPct: 32, laborCostPct: 29, opexPct: 26.5, BM: { food: 30, labor: 30, opex: 25 } },
+  noaResumen: 'OPEX en 26.5% sobre venta — +1.5pp sobre benchmark (25%). Food cost en 32% — +2pp sobre benchmark (30%). Margen positivo 12.5%, sobre el mínimo de 10%.',
+  tendencia3m: [{ label: 'Abr', neto: 57800000 }, { label: 'May', neto: 59300000 }, { label: 'Jun', neto: 61100000 }],
+};
+
 // ───────── helpers ─────────
 function clp(n) { return (Number(n) || 0).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }); }
 function clpK(n) { const v = Number(n) || 0; if (Math.abs(v) >= 1e6) return `$${(v / 1e6).toFixed(2)}M`; if (Math.abs(v) >= 1e3) return `$${(v / 1e3).toFixed(0)}K`; return `$${Math.round(v)}`; }
@@ -68,16 +86,16 @@ function PriceAlert({ rank, name, pctChange, from, to, unit }) {
 export default function DashboardOverview({ sales = [], supplyCosts = [], opexByType = {}, restaurantId, tz = 'America/Santiago' }) {
   const today = todayKey(tz);
   const now = new Date();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const dayOfMonth = now.getDate();
+  const daysInMonth = DEMO_MODE ? DEMO_CASA.diasMes : new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dayOfMonth = DEMO_MODE ? DEMO_CASA.diasAcum : now.getDate();
   const queryClient = useQueryClient();
 
   // Config editable de metas (utilidad objetivo + meta mensual de venta)
   const [cfg, setCfg] = useState(loadDashCfg);
   const [editCfg, setEditCfg] = useState(false);
-  const META_MENSUAL = cfg.metaMensual;
-  const META_DIARIA = META_MENSUAL / daysInMonth;
-  const UTIL_OBJETIVO = cfg.utilPct;            // % utilidad objetivo (default 15)
+  const META_MENSUAL = DEMO_MODE ? DEMO_CASA.metaMensual : cfg.metaMensual;
+  const META_DIARIA = DEMO_MODE ? DEMO_CASA.metaDiaria : META_MENSUAL / daysInMonth;
+  const UTIL_OBJETIVO = DEMO_MODE ? DEMO_CASA.utilPct : cfg.utilPct;
   const utilidadObjetivoMonto = META_MENSUAL * UTIL_OBJETIVO / 100; // "$ en plata"
 
   // Histórico de compras para alertas de precio
@@ -113,6 +131,7 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
 
   // Venta neta de HOY desde Fudo (CLOSED). Neto = total / 1.19 (IVA Chile).
   const ventaNetaHoy = useMemo(() => {
+    if (DEMO_MODE) return DEMO_CASA.ventaNetaHoy;
     const ventas = (fudoSync.sales || []).filter((s) => !s.is_cancelled && (s.date_time || '').slice(0, 10) === today);
     const bruto = ventas.reduce((a, s) => a + (Number(s.total_amount) || 0), 0);
     return { neto: Math.round(bruto / 1.19), bruto, count: ventas.length, hasFudo: (fudoSync.sales || []).length > 0 };
@@ -135,7 +154,7 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
       const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       meses.push({ label: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][d.getMonth()], neto: ventasMes[k] || 0 });
     }
-    return meses;
+    return DEMO_MODE ? DEMO_CASA.tendencia3m : meses;
   }, [fudoSync, now]);
 
   const M = useMemo(() => {
@@ -197,6 +216,7 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
   // ── NOA SCORE (HORECA): Food Cost + Labor Cost + OPEX + Tendencia ──
   // Benchmarks: Food 30%, Labor 30%, OPEX 25%. Pesos: OPEX 40, Food 25, Labor 20, Tendencia 15.
   const noa = useMemo(() => {
+    if (DEMO_MODE) return DEMO_CASA.noa;
     const BM = { food: 30, labor: 30, opex: 25 };
     const ventaNeta = (M.ventaAcum || 0) / 1.19;
     const payroll = Object.entries(opexByType).filter(([t]) => t === 'payroll').reduce((a, [, v]) => a + v, 0);
@@ -218,8 +238,18 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
   }, [M, opexByType]);
   const noaColor = noa.zona === 'saludable' ? '#16A34A' : noa.zona === 'riesgo_medio' ? '#F59E0B' : '#DC2626';
   const noaLabel = noa.zona === 'saludable' ? 'Saludable' : noa.zona === 'riesgo_medio' ? 'Atención' : 'Riesgo';
+  // Objeto unificado de KPIs (demo o real)
+  const K = DEMO_MODE ? DEMO_CASA : {
+    diasAcum: M.diasAcum,
+    ventaHoy: M.ventaHoy, ventaAcum: M.ventaAcum, ventaProj: M.ventaProj,
+    compraHoy: M.compraHoy, compraAcum: M.compraAcum, compraProj: M.compraProj, ratioCompraVenta: M.ratioCompraVenta,
+    opexHoy: M.opexDiario, opexAcum: M.opexDiario * M.diasAcum, opexProj: M.opexTotal, opexPct: noa.opexPct,
+    utilHoy: M.utilHoy, utilAcum: M.utilAcum, utilProj: M.utilProj, margenHoy: M.margenHoy, margenNeto: M.margenNeto, margenProj: M.margenProj,
+  };
+
   // Resumen textual del score
   const noaResumen = useMemo(() => {
+    if (DEMO_MODE) return DEMO_CASA.noaResumen;
     const op = noa.opexPct, fc = noa.foodCostPct;
     const opDelta = (op - noa.BM.opex).toFixed(0);
     const partes = [];
@@ -332,38 +362,41 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
       </div>
 
       {/* KPIS: barras con meta/límite (marcador al centro) + semáforo */}
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">KPIs</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">KPIs</p>
+        <span className="text-xs text-gray-500">Período: {DEMO_MODE ? DEMO_CASA.periodo : `mes en curso · día ${K.diasAcum}`}</span>
+      </div>
       <div className="space-y-2">
         <KpiCard name="VENTA" higherIsBetter
-          status={statusVenta(M.ventaProj, META_MENSUAL)}
+          status={statusVenta(K.ventaProj, META_MENSUAL)}
           cols={[
-            { label: 'Hoy', display: clp(M.ventaHoy), value: M.ventaHoy, target: META_DIARIA },
-            { label: `Acum. ${M.diasAcum} días`, display: clp(M.ventaAcum), value: M.ventaAcum, target: META_MENSUAL * (M.diasAcum / daysInMonth) },
-            { label: 'Proyectado', display: clp(M.ventaProj), value: M.ventaProj, target: META_MENSUAL },
+            { label: 'Hoy', display: clp(K.ventaHoy), value: K.ventaHoy, target: META_DIARIA },
+            { label: `Acum. ${K.diasAcum} días`, display: clp(K.ventaAcum), value: K.ventaAcum, target: META_MENSUAL * (K.diasAcum / daysInMonth) },
+            { label: 'Proyectado', display: clp(K.ventaProj), value: K.ventaProj, target: META_MENSUAL },
           ]} markerLabel="meta" />
 
         <KpiCard name="COMPRA" higherIsBetter={false}
-          status={statusRatio(M.ratioCompraVenta, 30, 34)}
+          status={statusRatio(K.ratioCompraVenta, 30, 34)}
           cols={[
-            { label: 'Hoy', display: clp(M.compraHoy), value: M.ratioCompraVenta, target: 30 },
-            { label: `Acum. ${M.diasAcum} días`, display: clp(M.compraAcum), value: M.ratioCompraVenta, target: 30 },
-            { label: 'Proyectado', display: clp(M.compraProj), value: M.ratioCompraVenta, target: 30 },
+            { label: 'Hoy', display: clp(K.compraHoy), value: K.ratioCompraVenta, target: 30 },
+            { label: `Acum. ${K.diasAcum} días`, display: clp(K.compraAcum), value: K.ratioCompraVenta, target: 30 },
+            { label: 'Proyectado', display: clp(K.compraProj), value: K.ratioCompraVenta, target: 30 },
           ]} markerLabel="límite" />
 
         <KpiCard name="OPEX" higherIsBetter={false}
-          status={statusRatio(noa.opexPct, 25, 28)}
+          status={statusRatio(K.opexPct, 25, 28)}
           cols={[
-            { label: 'Hoy', display: clp(M.opexDiario), value: noa.opexPct, target: 25 },
-            { label: `Acum. ${M.diasAcum} días`, display: clp(M.opexDiario * M.diasAcum), value: noa.opexPct, target: 25 },
-            { label: 'Proyectado', display: clp(M.opexTotal), value: noa.opexPct, target: 25 },
+            { label: 'Hoy', display: clp(K.opexHoy), value: K.opexPct, target: 25 },
+            { label: `Acum. ${K.diasAcum} días`, display: clp(K.opexAcum), value: K.opexPct, target: 25 },
+            { label: 'Proyectado', display: clp(K.opexProj), value: K.opexPct, target: 25 },
           ]} markerLabel="límite" />
 
         <KpiCard name="UTILIDAD NETA" higherIsBetter
-          status={statusUtilidad(M.margenNeto)}
+          status={statusUtilidad(K.margenNeto)}
           cols={[
-            { label: 'Hoy', display: clp(M.utilHoy), value: M.margenHoy, target: 10 },
-            { label: `Acum. ${M.diasAcum} días`, display: clp(M.utilAcum), value: M.margenNeto, target: 10 },
-            { label: 'Proyectado', display: clp(M.utilProj), value: M.margenProj, target: 10 },
+            { label: 'Hoy', display: clp(K.utilHoy), value: K.margenHoy, target: 10 },
+            { label: `Acum. ${K.diasAcum} días`, display: clp(K.utilAcum), value: K.margenNeto, target: 10 },
+            { label: 'Proyectado', display: clp(K.utilProj), value: K.margenProj, target: 10 },
           ]} markerLabel="meta" />
       </div>
 

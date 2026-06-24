@@ -35,6 +35,20 @@
     --noa-info:       #0EA5E9;
     --noa-info-lt:    #E0F2FE;
 
+    /* ─── Estados de alerta (semáforo Brand Book) ─── */
+    --alert-favorable:        #1D9E75;
+    --alert-favorable-bg:     #E1F5EE;
+    --alert-favorable-border: #9FE1CB;
+    --alert-atencion:         #BA7517;
+    --alert-atencion-bg:      #FAEEDA;
+    --alert-atencion-border:  #FAC775;
+    --alert-critico:          #A32D2D;
+    --alert-critico-bg:       #FCEBEB;
+    --alert-critico-border:   #F09595;
+    /* Barras KPI */
+    --kpi-blue: #378ADD;  /* sobre meta / bajo límite */
+    --kpi-red:  #E24B4A;  /* bajo meta / sobre límite */
+
     /* ─── Tipografía ─── */
     --noa-font-head: "Bricolage Grotesque", system-ui, sans-serif;
     --noa-font-body: "DM Sans", system-ui, sans-serif;

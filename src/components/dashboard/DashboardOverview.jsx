@@ -331,58 +331,62 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
       </CardContent></Card>
       </div>
 
-      {/* KPIS: Venta / Compra / OPEX / Utilidad — cada uno Hoy / Acum / Proyectado */}
+      {/* KPIS: barras con meta/límite (marcador al centro) + semáforo */}
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">KPIs</p>
-      <div className="space-y-5">
-        <MetricRow icon={TrendingUp} title="VENTA" subtitle={`en línea con el ritmo del mes (${(M.diasAcum / daysInMonth * 100).toFixed(0)}%)`} subColor="#16A34A" barColor="#16A34A"
+      <div className="space-y-2">
+        <KpiCard name="VENTA" higherIsBetter
+          status={statusVenta(M.ventaProj, META_MENSUAL)}
           cols={[
-            { icon: Sun, label: 'Hoy', value: clp(M.ventaHoy), barPct: M.ventaDiaProm > 0 ? Math.min(100, M.ventaHoy / M.ventaDiaProm * 100) : 0 },
-            { icon: CalendarDays, label: `Acum. ${M.diasAcum} días`, value: clp(M.ventaAcum), barPct: M.diasAcum / daysInMonth * 100 },
-            { icon: Flag, label: 'Proyectado', value: clp(M.ventaProj), barPct: 100 },
-          ]} />
+            { label: 'Hoy', display: clp(M.ventaHoy), value: M.ventaHoy, target: META_DIARIA },
+            { label: `Acum. ${M.diasAcum} días`, display: clp(M.ventaAcum), value: M.ventaAcum, target: META_MENSUAL * (M.diasAcum / daysInMonth) },
+            { label: 'Proyectado', display: clp(M.ventaProj), value: M.ventaProj, target: META_MENSUAL },
+          ]} markerLabel="meta" />
 
-        <MetricRow icon={ShoppingCart} title="COMPRA"
-          subtitle={`${M.ratioCompraVenta.toFixed(0)}% sobre venta, ${M.ratioCompraVenta <= 30 ? 'dentro de rango' : 'sobre benchmark (30%)'}`}
-          subColor={M.ratioCompraVenta <= 30 ? '#16A34A' : '#F59E0B'} barColor={M.ratioCompraVenta <= 30 ? '#16A34A' : '#F59E0B'}
+        <KpiCard name="COMPRA" higherIsBetter={false}
+          status={statusRatio(M.ratioCompraVenta, 30, 34)}
           cols={[
-            { icon: Sun, label: 'Hoy', value: clp(M.compraHoy), barPct: Math.min(100, M.ratioCompraVenta / 30 * 100) },
-            { icon: CalendarDays, label: `Acum. ${M.diasAcum} días`, value: clp(M.compraAcum), barPct: Math.min(100, M.ratioCompraVenta / 30 * 100) },
-            { icon: Flag, label: 'Proyectado', value: clp(M.compraProj), barPct: Math.min(100, M.ratioCompraVenta / 30 * 100) },
-          ]} />
+            { label: 'Hoy', display: clp(M.compraHoy), value: M.ratioCompraVenta, target: 30 },
+            { label: `Acum. ${M.diasAcum} días`, display: clp(M.compraAcum), value: M.ratioCompraVenta, target: 30 },
+            { label: 'Proyectado', display: clp(M.compraProj), value: M.ratioCompraVenta, target: 30 },
+          ]} markerLabel="límite" />
 
-        <MetricRow icon={Wallet} title="OPEX"
-          subtitle={`${noa.opexPct.toFixed(0)}% sobre venta, ${(noa.opexPct - 25).toFixed(0)}pp ${noa.opexPct > 25 ? 'sobre' : 'bajo'} benchmark (25%)`}
-          subColor={noa.opexPct <= 25 ? '#16A34A' : '#F59E0B'} barColor={noa.opexPct <= 25 ? '#16A34A' : '#F59E0B'}
+        <KpiCard name="OPEX" higherIsBetter={false}
+          status={statusRatio(noa.opexPct, 25, 28)}
           cols={[
-            { icon: Sun, label: 'Hoy', value: clp(M.opexDiario), barPct: Math.min(100, noa.opexPct / 25 * 100) },
-            { icon: CalendarDays, label: `Acum. ${M.diasAcum} días`, value: clp(M.opexDiario * M.diasAcum), barPct: Math.min(100, noa.opexPct / 25 * 100) },
-            { icon: Flag, label: 'Proyectado', value: clp(M.opexTotal), barPct: Math.min(100, noa.opexPct / 25 * 100) },
-          ]} />
+            { label: 'Hoy', display: clp(M.opexDiario), value: noa.opexPct, target: 25 },
+            { label: `Acum. ${M.diasAcum} días`, display: clp(M.opexDiario * M.diasAcum), value: noa.opexPct, target: 25 },
+            { label: 'Proyectado', display: clp(M.opexTotal), value: noa.opexPct, target: 25 },
+          ]} markerLabel="límite" />
 
-        <MetricRow icon={TrendingUp} title="UTILIDAD NETA"
-          subtitle={`${M.margenNeto >= 0 ? 'margen positivo' : 'margen negativo'} ${M.margenNeto.toFixed(1)}%`}
-          subColor={M.margenNeto >= 0 ? '#16A34A' : '#DC2626'} barColor={M.margenNeto >= 0 ? '#16A34A' : '#DC2626'}
+        <KpiCard name="UTILIDAD NETA" higherIsBetter
+          status={statusUtilidad(M.margenNeto)}
           cols={[
-            { icon: Sun, label: 'Hoy', value: clp(M.utilHoy), barPct: Math.max(0, Math.min(100, M.margenHoy / UTIL_OBJETIVO * 100)) },
-            { icon: CalendarDays, label: `Acum. ${M.diasAcum} días`, value: clp(M.utilAcum), barPct: Math.max(0, Math.min(100, M.margenNeto / UTIL_OBJETIVO * 100)) },
-            { icon: Flag, label: 'Proyectado', value: clp(M.utilProj), barPct: Math.max(0, Math.min(100, M.margenProj / UTIL_OBJETIVO * 100)) },
-          ]} />
-
-        {/* Tendencia 3 meses */}
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-[11px] text-gray-400 mb-1">Tendencia últimos 3 meses (venta neta)</p>
-            <ResponsiveContainer width="100%" height={90}>
-              <BarChart data={tendencia3m}>
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Bar dataKey="neto" radius={[4, 4, 0, 0]}>
-                  {tendencia3m.map((_, i) => <Cell key={i} fill={i === tendencia3m.length - 1 ? '#F59E0B' : '#0C1B33'} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+            { label: 'Hoy', display: clp(M.utilHoy), value: M.margenHoy, target: 10 },
+            { label: `Acum. ${M.diasAcum} días`, display: clp(M.utilAcum), value: M.margenNeto, target: 10 },
+            { label: 'Proyectado', display: clp(M.utilProj), value: M.margenProj, target: 10 },
+          ]} markerLabel="meta" />
       </div>
+
+      {/* Leyenda de barras */}
+      <div className="flex items-center gap-4 text-xs text-gray-600">
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#378ADD' }} /> sobre meta / bajo límite</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#E24B4A' }} /> bajo meta / sobre límite</span>
+      </div>
+
+      {/* Tendencia 3 meses */}
+      <Card>
+        <CardContent className="pt-4">
+          <p className="text-[11px] text-gray-400 mb-1">Tendencia últimos 3 meses (venta neta)</p>
+          <ResponsiveContainer width="100%" height={90}>
+            <BarChart data={tendencia3m}>
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Bar dataKey="neto" radius={[4, 4, 0, 0]}>
+                {tendencia3m.map((_, i) => <Cell key={i} fill={i === tendencia3m.length - 1 ? '#F59E0B' : '#0C1B33'} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       {/* KPIs strip: Utilidad objetivo (editable) + Costo directo de compra */}
       <div className="grid grid-cols-2 gap-4">
@@ -397,23 +401,12 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
         <KpiStrip value={pct(M.ratioCompraVenta)} label="Costo directo de compra" color="text-green-600" />
       </div>
 
-      {/* Alertas de precio */}
-      <div className="grid grid-cols-1 gap-6">
-        <Card><CardContent className="pt-6">
-          <p className="text-sm font-semibold text-noa-navy flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-noa-orange" /> ALERTAS DE PRECIO — ÚLTIMA COMPRA</p>
-          <p className="text-[11px] text-gray-500 mb-4">Insumos ordenados de mayor a menor alza · vs compra anterior</p>
-          {priceAlerts.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">Sin alzas de precio detectadas.</p>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button onClick={() => setAlertPage((p) => Math.max(0, p - 1))} disabled={alertPage === 0} className="p-1.5 rounded-full border disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
-              <div className="flex-1 flex justify-around overflow-hidden">
-                {pageAlerts.map((a, i) => <PriceAlert key={a.name} rank={alertPage * perPage + i + 1} {...a} />)}
-              </div>
-              <button onClick={() => setAlertPage((p) => Math.min(totalPages - 1, p + 1))} disabled={alertPage >= totalPages - 1} className="p-1.5 rounded-full border disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
-            </div>
-          )}
-        </CardContent></Card>
+      {/* Panel de alertas — Compra / Óptimo / Fuga (Robo · Desviación · Merma · Precio) */}
+      <div>
+        <p className="text-sm font-semibold text-noa-navy flex items-center gap-1.5 mb-3"><AlertTriangle className="w-4 h-4 text-noa-orange" /> Panel de alertas</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {ALERTAS_DEMO.map((a) => <AlertCard key={a.producto} a={a} />)}
+        </div>
       </div>
 
       {editCfg && (
@@ -453,27 +446,103 @@ function EditMetaDialog({ cfg, onClose, onSave }) {
   );
 }
 
-function MetricRow({ icon: Icon, title, subtitle, subColor = '#16A34A', barColor = '#0C1B33', cols }) {
+// ── Panel de alertas (dataset demo del PDF: Casa Mediterránea, junio 2026) ──
+const ALERTAS_DEMO = [
+  { producto: 'Lomo vetado', tipo: 'Robo', sev: 82, estado: 'critico',
+    compra: { monto: 485000, cant: '12 kg' }, optimo: { monto: 323000, cant: '8 kg' }, fuga: { monto: 162000, cant: '4 kg' } },
+  { producto: 'Aceite de oliva virgen', tipo: 'Desviación', sev: 58, estado: 'atencion',
+    compra: { monto: 124000, cant: '18 lt' }, optimo: { monto: 96000, cant: '14 lt' }, fuga: { monto: 28000, cant: '4 lt' } },
+  { producto: 'Salmón fresco', tipo: 'Merma', sev: 41, estado: 'atencion',
+    compra: { monto: 378000, cant: '9 kg' }, optimo: { monto: 336000, cant: '8 kg' }, fuga: { monto: 42000, cant: '1 kg' } },
+  { producto: 'Tomate rama', tipo: 'Precio', sev: 35, estado: 'atencion',
+    compra: { monto: 89000, cant: '$4.450/kg' }, optimo: { monto: 66000, cant: '$3.300/kg' }, fuga: { monto: 23000, cant: '+$1.150/kg' } },
+];
+const PILL_STYLE = {
+  Robo: { bg: '#FCEBEB', border: '#F09595', color: '#A32D2D' },
+  Desviación: { bg: '#FAEEDA', border: '#FAC775', color: '#633806' },
+  Merma: { bg: '#E1F5EE', border: '#9FE1CB', color: '#085041' },
+  Precio: { bg: '#E6F1FB', border: '#85B7EB', color: '#0C447C' },
+};
+function AlertCard({ a }) {
+  const pill = PILL_STYLE[a.tipo] || PILL_STYLE.Precio;
+  const st = STATUS_STYLE[a.estado] || STATUS_STYLE.atencion;
+  const fugaPct = a.compra.monto > 0 ? (a.fuga.monto / a.compra.monto) * 100 : 0;
+  const optimoPct = a.compra.monto > 0 ? (a.optimo.monto / a.compra.monto) * 100 : 0;
+  const Row = ({ label, monto, cant, children }) => (
+    <div className="flex items-center gap-2.5 mb-2.5">
+      <span className="text-[10px] text-gray-500 w-[52px] shrink-0 text-right">{label}</span>
+      <div className="flex-1 relative h-[22px] rounded-[5px] border border-gray-200 bg-[#f5f5f5] overflow-hidden">{children}</div>
+      <span className="text-[10px] font-medium bg-[#f5f5f5] border border-gray-200 rounded-[5px] px-2 py-0.5 shrink-0">{cant}</span>
+    </div>
+  );
+  return (
+    <Card><CardContent className="pt-4 pb-3">
+      <div className="flex items-center justify-between mb-3">
+        <span className="font-display font-bold text-[15px] text-gray-900" style={{ letterSpacing: '-0.3px' }}>{a.producto}</span>
+        <span className="text-[11px] font-medium px-3 py-0.5 rounded-full border" style={{ background: pill.bg, borderColor: pill.border, color: pill.color }}>{a.tipo} · {a.sev}%</span>
+      </div>
+      <Row label="Compra" cant={a.compra.cant}>
+        <div className="absolute inset-0 flex items-center px-2 text-[10px] font-medium text-gray-900">{clp(a.compra.monto)}</div>
+      </Row>
+      <Row label="Óptimo" cant={a.optimo.cant}>
+        <div className="absolute left-0 top-0 h-full" style={{ width: `${optimoPct}%`, background: 'rgba(12,27,51,0.06)', borderRight: '2px solid #999' }} />
+        <div className="absolute inset-0 flex items-center px-2 text-[10px] font-medium text-gray-900">{clp(a.optimo.monto)}</div>
+      </Row>
+      <Row label="Fuga" cant={a.fuga.cant}>
+        <div className="absolute right-0 top-0 h-full flex items-center justify-center" style={{ width: `${Math.max(12, fugaPct)}%`, background: '#333' }}>
+          <span className="text-[10px] font-medium text-white">{clp(a.fuga.monto)}</span>
+        </div>
+      </Row>
+      <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-gray-200">
+        <span className="text-[11px] font-medium" style={{ color: st.color }}>{st.label}</span>
+        <button className="inline-flex items-center gap-1 text-[10px] text-gray-500 bg-[#f5f5f5] border border-gray-200 rounded-full px-3 py-1 hover:bg-gray-100">↓ Informe</button>
+      </div>
+    </CardContent></Card>
+  );
+}
+
+// Estados semáforo
+const STATUS_STYLE = {
+  favorable: { color: '#1D9E75', bg: '#E1F5EE', label: 'Favorable' },
+  atencion: { color: '#BA7517', bg: '#FAEEDA', label: 'Atención' },
+  critico: { color: '#A32D2D', bg: '#FCEBEB', label: 'Crítico' },
+};
+function statusVenta(proy, meta) { if (proy >= meta) return 'favorable'; if (proy >= meta * 0.9) return 'atencion'; return 'critico'; }
+function statusRatio(val, bench, limite) { if (val <= bench) return 'favorable'; if (val <= limite) return 'atencion'; return 'critico'; }
+function statusUtilidad(margen) { if (margen >= 10) return 'favorable'; if (margen >= 6) return 'atencion'; return 'critico'; }
+
+// Barra con marcador de meta/límite al centro (50%). Azul si favorable, rojo si no.
+function KpiBar({ value, target, higherIsBetter, markerLabel }) {
+  const ratio = target > 0 ? value / target : 0;
+  const fillPct = Math.max(3, Math.min(100, ratio * 50)); // 50% = en la meta/límite
+  const favorable = higherIsBetter ? value >= target : value <= target;
+  const color = favorable ? '#378ADD' : '#E24B4A';
+  return (
+    <div className="relative h-[5px] bg-[#f0f0f0] rounded-[3px] mt-2 mb-4">
+      <div className="h-[5px] rounded-[3px]" style={{ width: `${fillPct}%`, background: color }} />
+      <div className="absolute" style={{ left: '50%', top: '-4px', width: '2px', height: '13px', background: '#999', borderRadius: '1px', transform: 'translateX(-50%)' }} />
+      <div className="absolute text-[9px] text-[#999]" style={{ left: '50%', top: '11px', transform: 'translateX(-50%)' }}>{markerLabel}</div>
+    </div>
+  );
+}
+
+function KpiCard({ name, status, cols, higherIsBetter, markerLabel }) {
+  const st = STATUS_STYLE[status] || STATUS_STYLE.favorable;
   return (
     <Card>
-      <CardContent className="pt-4">
-        <p className="text-sm font-semibold text-noa-navy flex items-center gap-1.5 mb-3">
-          <Icon className="w-4 h-4 text-noa-orange" /> {title}
-          {subtitle && <span className="font-normal text-xs" style={{ color: subColor }}>· {subtitle}</span>}
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {cols.map((c, i) => {
-            const CI = c.icon;
-            return (
-              <div key={i}>
-                <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1"><CI className="w-3.5 h-3.5" /> {c.label}</div>
-                <p className="text-xl font-bold text-noa-navy font-display">{c.value}</p>
-                <div className="h-1.5 rounded-full bg-gray-100 mt-2 overflow-hidden">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(3, Math.min(100, c.barPct))}%`, backgroundColor: barColor }} />
-                </div>
-              </div>
-            );
-          })}
+      <CardContent className="pt-4 pb-2">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-900">{name}</p>
+          <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full" style={{ color: st.color, background: st.bg }}>{st.label}</span>
+        </div>
+        <div className="grid grid-cols-3 gap-5">
+          {cols.map((c, i) => (
+            <div key={i}>
+              <p className="text-[10px] text-gray-500 mb-0.5">{c.label}</p>
+              <p className="text-lg font-semibold text-gray-900 font-display">{c.display}</p>
+              <KpiBar value={c.value} target={c.target} higherIsBetter={higherIsBetter} markerLabel={markerLabel} />
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>

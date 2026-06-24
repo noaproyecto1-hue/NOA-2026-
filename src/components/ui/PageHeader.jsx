@@ -19,81 +19,62 @@ const headerImages = {
   copilot: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1920&q=80',
 };
 
-export default function PageHeader({ 
-  title, 
-  subtitle, 
+// Hero unificado NOA (Brand Book): navy dominante + foto + overlay navy 0.72,
+// icon box, título Bricolage, subtítulo DM Sans, acciones a la derecha.
+export default function PageHeader({
+  title,
+  subtitle,
   icon: Icon,
   imageKey = 'dashboard',
   children,
   compact = false,
-  gradient = 'from-slate-900/90 via-slate-900/70 to-slate-900/50'
+  gradient, // ignorado: el overlay siempre es navy 0.72 por Brand Book
 }) {
   const imageUrl = headerImages[imageKey] || headerImages.dashboard;
-  
+
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className={`relative overflow-hidden ${compact ? 'py-8' : 'py-12 lg:py-16'}`}
+    <div
+      className="relative overflow-hidden"
+      style={{ background: '#0C1B33', padding: compact ? '24px 0' : '32px 0', minHeight: compact ? 96 : 120 }}
     >
-      {/* Background Image */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${imageUrl})` }}
-      />
-      
-      {/* Gradient Overlay */}
-      <div className={`absolute inset-0 bg-gradient-to-r ${gradient}`} />
-      
-      {/* Animated particles/dots effect */}
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white rounded-full animate-pulse" />
-        <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-white rounded-full animate-pulse delay-100" />
-        <div className="absolute bottom-1/4 left-1/3 w-1.5 h-1.5 bg-white rounded-full animate-pulse delay-200" />
-        <div className="absolute top-1/2 right-1/4 w-1 h-1 bg-white rounded-full animate-pulse delay-300" />
-      </div>
-      
-      {/* Content */}
+      {/* Foto del módulo */}
+      <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${imageUrl})` }} />
+      {/* Overlay navy 72% (obligatorio Brand Book) */}
+      <div className="absolute inset-0" style={{ background: 'rgba(12, 27, 51, 0.72)' }} />
+
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="flex items-center gap-4"
-          >
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+          <div className="flex items-center gap-5">
             {Icon && (
-              <div className="w-14 h-14 lg:w-16 lg:h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-2xl border border-white/20">
-                <Icon className="w-7 h-7 lg:w-8 lg:h-8 text-white" />
+              <div className="rounded-xl p-3 backdrop-blur-sm" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                <Icon className="w-7 h-7 text-white" />
               </div>
             )}
             <div>
-              <h1 className="text-2xl lg:text-4xl font-bold text-white tracking-tight">
+              <h1
+                className="text-white m-0"
+                style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontWeight: 700, fontSize: '28px', letterSpacing: '-0.5px' }}
+              >
                 {title}
               </h1>
               {subtitle && (
-                <p className="text-white/70 mt-1 text-sm lg:text-base">
+                <p
+                  className="m-0 mt-0.5"
+                  style={{ fontFamily: '"DM Sans", sans-serif', fontWeight: 300, fontSize: '13px', color: 'rgba(255,255,255,0.65)' }}
+                >
                   {subtitle}
                 </p>
               )}
             </div>
-          </motion.div>
-          
+          </div>
+
           {children && (
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex flex-wrap items-center gap-3"
-            >
+            <div className="flex flex-wrap items-center gap-2">
               {children}
-            </motion.div>
+            </div>
           )}
         </div>
       </div>
-      
-      {/* Bottom gradient fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-50 to-transparent" />
-    </motion.div>
+    </div>
   );
 }

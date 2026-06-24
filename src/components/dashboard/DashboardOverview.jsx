@@ -1,8 +1,18 @@
-import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sun, CalendarDays, Flag, ShoppingCart, TrendingUp, Wallet, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { BarChart, Bar, XAxis, ResponsiveContainer, Cell } from 'recharts';
+import { Sun, CalendarDays, Flag, ShoppingCart, TrendingUp, Wallet, AlertTriangle, ChevronLeft, ChevronRight, RefreshCw, Loader2, Pencil } from 'lucide-react';
+
+// Config de metas (editable). Todo se rige por la utilidad objetivo (default 15%).
+function loadDashCfg() {
+  try { const c = JSON.parse(localStorage.getItem('noa_dash_cfg') || '{}'); return { utilPct: c.utilPct ?? 15, metaMensual: c.metaMensual ?? 10000000 }; }
+  catch { return { utilPct: 15, metaMensual: 10000000 }; }
+}
 
 // ───────── helpers ─────────
 function clp(n) { return (Number(n) || 0).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }); }
@@ -60,6 +70,15 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const dayOfMonth = now.getDate();
+  const queryClient = useQueryClient();
+
+  // Config editable de metas (utilidad objetivo + meta mensual de venta)
+  const [cfg, setCfg] = useState(loadDashCfg);
+  const [editCfg, setEditCfg] = useState(false);
+  const META_MENSUAL = cfg.metaMensual;
+  const META_DIARIA = META_MENSUAL / daysInMonth;
+  const UTIL_OBJETIVO = cfg.utilPct;            // % utilidad objetivo (default 15)
+  const utilidadObjetivoMonto = META_MENSUAL * UTIL_OBJETIVO / 100; // "$ en plata"
 
   // Histórico de compras para alertas de precio
   const { data: allCosts = [] } = useQuery({
@@ -72,11 +91,25 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
   });
 
   // Ventas reales de Fudo (cache KV) para la Venta Neta del día
-  const { data: fudoSync = { sales: [] } } = useQuery({
+  const { data: fudoSync = { sales: [] }, isFetching: fudoFetching } = useQuery({
     queryKey: ['overview-fudo-sync'],
     queryFn: async () => { const r = await fetch('/__fudo/sync-pull'); return r.ok ? await r.json() : { sales: [] }; },
     staleTime: 60 * 1000,
   });
+
+  // Sincroniza ventas reales de Fudo al cargar la plataforma (una vez) + botón.
+  const [syncing, setSyncing] = useState(false);
+  async function actualizar() {
+    setSyncing(true);
+    try { await fetch('/__fudo/sync-pull', { method: 'POST' }); queryClient.invalidateQueries({ queryKey: ['overview-fudo-sync'] }); }
+    catch {} finally { setSyncing(false); }
+  }
+  useEffect(() => {
+    // Auto-sync al montar si la última sync es vieja (>30 min) o no hay datos.
+    const last = fudoSync?.lastSync ? new Date(fudoSync.lastSync).getTime() : 0;
+    if (!last || (Date.now() - last) > 30 * 60 * 1000) actualizar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Venta neta de HOY desde Fudo (CLOSED). Neto = total / 1.19 (IVA Chile).
   const ventaNetaHoy = useMemo(() => {
@@ -85,9 +118,25 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
     return { neto: Math.round(bruto / 1.19), bruto, count: ventas.length, hasFudo: (fudoSync.sales || []).length > 0 };
   }, [fudoSync, today]);
 
-  const META_DIARIA = 1000000;
-  const ventaColor = ventaNetaHoy.neto >= META_DIARIA ? '#16A34A' : ventaNetaHoy.neto >= 700000 ? '#F59E0B' : '#DC2626';
-  const ventaPct = Math.min(100, ventaNetaHoy.neto / META_DIARIA * 100);
+  const ventaColor = ventaNetaHoy.neto >= META_DIARIA ? '#16A34A' : ventaNetaHoy.neto >= META_DIARIA * 0.7 ? '#F59E0B' : '#DC2626';
+  const ventaPct = META_DIARIA > 0 ? Math.min(100, ventaNetaHoy.neto / META_DIARIA * 100) : 0;
+
+  // Tendencia de utilidad estimada: últimos 3 meses desde Fudo (neto * margen actual)
+  const tendencia3m = useMemo(() => {
+    const ventasMes = {};
+    for (const s of (fudoSync.sales || [])) {
+      if (s.is_cancelled) continue;
+      const k = (s.date_time || '').slice(0, 7); if (!k) continue;
+      ventasMes[k] = (ventasMes[k] || 0) + (Number(s.total_amount) || 0) / 1.19;
+    }
+    const meses = [];
+    for (let i = 2; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      meses.push({ label: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][d.getMonth()], neto: ventasMes[k] || 0 });
+    }
+    return meses;
+  }, [fudoSync, now]);
 
   const M = useMemo(() => {
     const saleDay = (s) => { try { return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(s.date_time)); } catch { return ''; } };
@@ -145,12 +194,14 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
     }));
   }, [opexByType, M]);
 
-  // Eficiencia global: composite simple (margen neto normalizado + control de costos)
+  // Eficiencia global lineal vs utilidad objetivo:
+  // margen = utilObjetivo (15%) → 100% · margen 0% → 0% · margen -utilObjetivo → -100%
   const eficiencia = useMemo(() => {
-    const margenScore = Math.max(0, Math.min(100, M.margenNeto * 2)); // 50% margen → 100
-    const costoScore = Math.max(0, 100 - M.ratioCompraVenta); // menos costo = mejor
-    return Math.round((margenScore * 0.5 + costoScore * 0.5));
-  }, [M]);
+    const base = UTIL_OBJETIVO || 15;
+    const e = (M.margenNeto / base) * 100;
+    return Math.round(Math.max(-100, Math.min(100, e)));
+  }, [M, UTIL_OBJETIVO]);
+  const eficienciaColor = eficiencia >= 66 ? '#16A34A' : eficiencia >= 33 ? '#F59E0B' : '#DC2626';
 
   // Alertas de precio: comparar último vs penúltimo precio por insumo
   const priceAlerts = useMemo(() => {
@@ -179,9 +230,16 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Fila superior: Venta Neta del día + Eficiencia Global */}
+      {/* Botón Actualizar (sincroniza ventas reales de Fudo) */}
+      <div className="flex justify-end">
+        <Button onClick={actualizar} disabled={syncing || fudoFetching} variant="outline" size="sm">
+          {(syncing || fudoFetching) ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
+          {(syncing || fudoFetching) ? 'Actualizando…' : 'Actualizar'}
+        </Button>
+      </div>
+
+      {/* Fila superior: Venta Neta + Meta mensual / Eficiencia Global */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Venta Neta del día (datos reales de Fudo) con barra de color vs meta diaria */}
       <Card className="overflow-hidden lg:col-span-2">
         <CardContent className="pt-5">
           <div className="flex items-start justify-between flex-wrap gap-4">
@@ -201,25 +259,29 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
               <p className="text-xs font-semibold mt-0.5" style={{ color: ventaColor }}>{ventaPct.toFixed(0)}% de la meta</p>
             </div>
           </div>
-          {/* Barra de color: rojo <700k · amarillo 700k-1M · verde >1M */}
+          {/* Barra de color vs meta diaria (rojo <70% · amarillo 70-100% · verde >100%) */}
           <div className="mt-4">
             <div className="h-4 rounded-full bg-gray-100 overflow-hidden relative">
               <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(2, ventaPct)}%`, backgroundColor: ventaColor }} />
-              {/* marcas 70% y 100% */}
               <div className="absolute top-0 bottom-0" style={{ left: '70%', width: '1px', background: 'rgba(0,0,0,.15)' }} />
             </div>
             <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-              <span>$0</span><span>$700K</span><span>$1M</span>
+              <span>$0</span><span>70%</span><span>Meta {clp(META_DIARIA)}</span>
             </div>
+          </div>
+          {/* Meta mensual en la misma ventana */}
+          <div className="mt-4 pt-3 border-t flex items-center justify-between">
+            <span className="text-xs text-gray-500">Meta mensual de venta</span>
+            <span className="font-bold text-noa-navy">{clp(META_MENSUAL)}</span>
           </div>
         </CardContent>
       </Card>
 
       {/* Eficiencia Global (arriba) */}
       <Card><CardContent className="pt-6 flex flex-col items-center justify-center h-full">
-        <Donut value={eficiencia} label="" color="#2563EB" size={140} />
+        <Donut value={eficiencia} label="" color={eficienciaColor} size={140} />
         <p className="text-sm font-bold text-noa-navy mt-2 font-display">EFICIENCIA GLOBAL</p>
-        <p className="text-xs text-gray-500 text-center">Rendimiento del restaurante</p>
+        <p className="text-xs text-gray-500 text-center">Utilidad {M.margenNeto.toFixed(1)}% vs objetivo {UTIL_OBJETIVO}%</p>
       </CardContent></Card>
       </div>
 
@@ -240,12 +302,34 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
               { icon: Flag, label: 'Proyectada fin de mes', value: clp(M.compraProj), tag: `Ratio ${M.ratioCompraVenta.toFixed(0)}%`, tagOk: true, foot: 'ratio compra/venta', barPct: M.ratioCompraVenta },
             ]} />
 
-          <MetricRow icon={Wallet} title="UTILIDAD NETA ESTIMADA" color="#F59E0B"
-            cols={[
-              { icon: Sun, label: 'Hoy', value: clp(M.utilHoy), tag: `Margen neto ${M.margenHoy.toFixed(0)}%`, tagOk: M.utilHoy >= 0, foot: 'margen neto', barPct: Math.max(0, M.margenHoy * 2), accent: true },
-              { icon: CalendarDays, label: `Acumulada (${M.diasAcum} días)`, value: clp(M.utilAcum), tag: `Margen neto ${M.margenNeto.toFixed(0)}%`, tagOk: M.utilAcum >= 0, foot: 'margen neto', barPct: Math.max(0, M.margenNeto * 2), accent: true },
-              { icon: Flag, label: 'Proyectada fin de mes', value: clp(M.utilProj), tag: `Margen neto ${M.margenProj.toFixed(0)}%`, tagOk: M.utilProj >= 0, foot: 'margen neto', barPct: Math.max(0, M.margenProj * 2), accent: true },
-            ]} />
+          {/* UTILIDAD NETA ESTIMADA — solo proyectada mensual + tendencia 3 meses */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 flex items-center gap-1.5 mb-2 uppercase tracking-wide"><Wallet className="w-3.5 h-3.5" /> UTILIDAD NETA ESTIMADA</p>
+            <Card className="border-t-2" style={{ borderTopColor: '#F59E0B' }}>
+              <CardContent className="pt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                  <div>
+                    <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1"><Flag className="w-3.5 h-3.5" /> Proyectada fin de mes</div>
+                    <p className="text-2xl font-bold text-noa-navy font-display">{clp(M.utilProj)}</p>
+                    <span className={`inline-block text-[11px] px-2 py-0.5 rounded-full mt-1 ${M.utilProj >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                      Margen neto {M.margenProj.toFixed(0)}% · objetivo {UTIL_OBJETIVO}%
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-gray-400 mb-1 text-right">Tendencia últimos 3 meses (venta neta)</p>
+                    <ResponsiveContainer width="100%" height={90}>
+                      <BarChart data={tendencia3m}>
+                        <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <Bar dataKey="neto" radius={[4, 4, 0, 0]}>
+                          {tendencia3m.map((_, i) => <Cell key={i} fill={i === tendencia3m.length - 1 ? '#F59E0B' : '#0C1B33'} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Columna derecha: OPEX */}
@@ -275,10 +359,17 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
         </Card>
       </div>
 
-      {/* KPIs strip */}
+      {/* KPIs strip: Utilidad objetivo (editable) + Costo directo de compra */}
       <div className="grid grid-cols-2 gap-4">
-        <KpiStrip value={clp(M.ventaDiaProm)} label="Promedio venta / día" color="text-noa-info" />
-        <KpiStrip value={pct(M.ratioCompraVenta)} label="Ratio compra / venta" color="text-green-600" />
+        <Card className="bg-noa-orange/5 border-noa-orange/30"><CardContent className="pt-5 text-center relative">
+          <button onClick={() => setEditCfg(true)} className="absolute top-3 right-3 text-gray-400 hover:text-noa-navy" title="Editar objetivo">
+            <Pencil className="w-4 h-4" />
+          </button>
+          <p className="text-2xl font-bold font-display text-noa-orange-dk">{UTIL_OBJETIVO}% de utilidad</p>
+          <p className="text-sm font-semibold text-noa-navy mt-1">{clp(utilidadObjetivoMonto)}</p>
+          <p className="text-xs text-gray-500 mt-1">objetivo mensual · meta {clp(META_MENSUAL)}</p>
+        </CardContent></Card>
+        <KpiStrip value={pct(M.ratioCompraVenta)} label="Costo directo de compra" color="text-green-600" />
       </div>
 
       {/* Alertas de precio */}
@@ -299,7 +390,41 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
           )}
         </CardContent></Card>
       </div>
+
+      {editCfg && (
+        <EditMetaDialog cfg={cfg} onClose={() => setEditCfg(false)} onSave={(next) => {
+          setCfg(next); try { localStorage.setItem('noa_dash_cfg', JSON.stringify(next)); } catch {} setEditCfg(false);
+        }} />
+      )}
     </div>
+  );
+}
+
+function EditMetaDialog({ cfg, onClose, onSave }) {
+  const [utilPct, setUtilPct] = useState(cfg.utilPct);
+  const [metaMensual, setMetaMensual] = useState(cfg.metaMensual);
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="font-sans max-w-md">
+        <DialogHeader><DialogTitle className="font-display text-noa-navy">Objetivo de utilidad y meta</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-sm text-gray-600">Utilidad objetivo (%)</label>
+            <Input type="number" value={utilPct} onChange={(e) => setUtilPct(e.target.value)} />
+            <p className="text-[11px] text-gray-400">La eficiencia global y todas las metas se rigen por este %.</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm text-gray-600">Meta mensual de venta (CLP)</label>
+            <Input type="number" value={metaMensual} onChange={(e) => setMetaMensual(e.target.value)} />
+            <p className="text-[11px] text-gray-400">Meta diaria = meta mensual ÷ días del mes.</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button className="bg-noa-navy hover:bg-noa-navy-mid" onClick={() => onSave({ utilPct: Number(utilPct) || 15, metaMensual: Number(metaMensual) || 10000000 })}>Guardar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

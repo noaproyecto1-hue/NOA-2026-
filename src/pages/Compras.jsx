@@ -325,7 +325,7 @@ function CeldaMes({ amount, pct, prevPct, isCurrent, small }) {
       {pct > 0 && (
         <div className={`text-[11px] inline-flex items-center gap-0.5 ${color}`}>
           {pct.toFixed(1)}%
-          {showArrow && (up ? <ArrowUp className="w-3 h-3 text-red-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />)}
+          {showArrow && (up ? <ArrowUp className="w-3 h-3 text-red-600" /> : <ArrowDown className="w-3 h-3 text-green-600" />)}
         </div>
       )}
     </TableCell>
@@ -503,25 +503,37 @@ function ItemComprasInline({ kind, name, rid }) {
             {isOpen && (
               <table className="w-full text-xs">
                 <thead className="bg-gray-50"><tr className="text-left text-gray-500">
-                  <th className="py-1.5 px-3 w-8"></th><th className="py-1.5 px-3">Fecha</th><th className="py-1.5 px-3">Proveedor</th>
+                  <th className="py-1.5 px-3">Glosa</th><th className="py-1.5 px-3">Fecha</th><th className="py-1.5 px-3">Proveedor</th>
                   <th className="py-1.5 px-3">N° Factura</th><th className="py-1.5 px-3 text-right">Monto ítem</th><th className="py-1.5 px-3 text-center">PDF</th>
                 </tr></thead>
                 <tbody className="divide-y">
-                  {[...mes.list].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => {
+                  {(() => {
+                    const montos = mes.list.map((x) => Number(x.total_cost || x.amount) || 0);
+                    const maxM = Math.max(...montos), minM = Math.min(...montos);
+                    const hayRango = mes.list.length > 1 && maxM !== minM;
+                    return [...mes.list].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((r, i) => {
                     const inv = r.invoice_number;
                     const sibs = inv ? siblings(inv) : [r];
                     const isPrev = preview === `${mes.ym}:${inv}:${i}`;
+                    const monto = Number(r.total_cost || r.amount) || 0;
+                    const esMax = hayRango && monto === maxM;
+                    const esMin = hayRango && monto === minM;
                     return (
                       <React.Fragment key={i}>
                         <tr className="hover:bg-gray-50">
-                          <td className="py-1.5 px-3 text-center">
-                            <button title="Vista previa de la factura" className="text-gray-400 hover:text-noa-navy"
+                          <td className="py-1.5 px-3">
+                            <button title="Vista previa de la factura" className="text-gray-400 hover:text-noa-navy mr-1.5"
                               onClick={() => setPreview(isPrev ? null : `${mes.ym}:${inv}:${i}`)}>👁</button>
+                            <span className="text-gray-700">{r.description || r.supply_item_name || r.supply_name || name}</span>
                           </td>
                           <td className="py-1.5 px-3">{fdate(r.date)}</td>
-                          <td className="py-1.5 px-3">{r.supplier || (r.cost_center_name || '—')}</td>
+                          <td className="py-1.5 px-3">
+                            {r.supplier || (r.cost_center_name || '—')}
+                            {esMax && <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-red-100 text-red-700 font-semibold whitespace-nowrap">▲ más cara</span>}
+                            {esMin && <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-green-100 text-green-700 font-semibold whitespace-nowrap">▼ más ec.</span>}
+                          </td>
                           <td className="py-1.5 px-3">{inv || '—'}</td>
-                          <td className="py-1.5 px-3 text-right font-semibold">{clp(r.total_cost || r.amount)}</td>
+                          <td className={`py-1.5 px-3 text-right font-semibold ${esMax ? 'text-noa-info' : ''}`}>{clp(monto)}</td>
                           <td className="py-1.5 px-3 text-center">
                             <button title="Descargar factura completa (PDF)" className="text-noa-orange-dk hover:text-noa-orange inline-flex"
                               onClick={() => descargarFacturaPDF(r, sibs)}><Download className="w-4 h-4" /></button>
@@ -534,7 +546,8 @@ function ItemComprasInline({ kind, name, rid }) {
                         )}
                       </React.Fragment>
                     );
-                  })}
+                  });
+                  })()}
                 </tbody>
               </table>
             )}

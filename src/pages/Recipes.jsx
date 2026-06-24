@@ -558,7 +558,7 @@ export default function Recipes() {
           </TabsContent>
 
           <TabsContent value="carta" className="mt-4">
-            <CartaPanel onUpdateRecipePrice={updateRecipePrice} />
+            <CartaPanel onUpdateRecipePrice={updateRecipePrice} recipeNames={recipes.map((r) => r.dish_name).filter(Boolean)} />
           </TabsContent>
 
           <TabsContent value="rendimientos" className="mt-4">

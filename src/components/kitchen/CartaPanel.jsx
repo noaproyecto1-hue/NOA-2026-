@@ -104,7 +104,8 @@ function saveCarta(c) { try { localStorage.setItem('noa_carta', JSON.stringify(c
 
 const clp = (n) => (Number(n) || 0).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
-export default function CartaPanel({ onUpdateRecipePrice }) {
+export default function CartaPanel({ onUpdateRecipePrice, recipeNames = [] }) {
+  const recetaSet = useMemo(() => new Set(recipeNames.map((n) => (n || '').trim().toLowerCase())), [recipeNames]);
   const [carta, setCarta] = useState(loadCarta);
   const [pagina, setPagina] = useState('bebidas');
   const [editing, setEditing] = useState(null); // { section, item }
@@ -155,6 +156,10 @@ export default function CartaPanel({ onUpdateRecipePrice }) {
                   const s = BADGE_STYLE[b] || {};
                   return <span key={b} className="text-[9px] px-1.5 py-0.5 rounded-full border" style={{ background: s.bg, color: s.color, borderColor: s.border }}>{b}</span>;
                 })}
+                {/* Badge admin "Sin receta": visible solo en edición, nunca en vista previa/descarga (Prompt 13) */}
+                {!preview && !recetaSet.has((it.name || '').trim().toLowerCase()) && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full border" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B', borderColor: 'rgba(245,158,11,0.4)' }}>Sin receta</span>
+                )}
               </div>
               {it.desc && <p className="text-[11px] text-white/45 leading-snug">{it.desc}</p>}
             </div>

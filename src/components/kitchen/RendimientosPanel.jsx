@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Plus, Download, Pencil, Trash2, Check, Gauge } from 'lucide-react';
+import { Search, Plus, Download, Upload, Pencil, Trash2, Check, Gauge } from 'lucide-react';
 
 // ── Módulo Rendimientos (Prompt 15) — antes "VUM" (Prompt 14) ──
 // Dashboard editable que transforma la hoja de cálculo en una vista interactiva.
@@ -74,6 +74,7 @@ export default function RendimientosPanel({ supplyItems = [] }) {
   const [search, setSearch] = useState('');
   const [cat, setCat] = useState('all');
   const [editing, setEditing] = useState(null);
+  const fileRef = useRef(null);
 
   function persist(next) { setRows(next); saveRend(next); }
   function updateCell(id, field, value) {
@@ -108,6 +109,40 @@ export default function RendimientosPanel({ supplyItems = [] }) {
     const a = document.createElement('a'); a.href = url; a.download = 'Rendimientos-NOA.csv'; a.click(); URL.revokeObjectURL(url);
   }
 
+  // Importar CSV con el mismo formato del export: actualiza por nombre o agrega nuevos (Prompt 15).
+  function importCSV(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || '').replace(/^﻿/, '');
+        const lines = text.split(/\r?\n/).filter((l) => l.trim());
+        const sep = (lines[0].match(/;/g) || []).length >= (lines[0].match(/,/g) || []).length ? ';' : ',';
+        const next = [...rows];
+        for (let i = 1; i < lines.length; i++) {
+          const c = lines[i].split(sep);
+          const name = (c[0] || '').trim();
+          if (!name) continue;
+          const parsed = {
+            name, category: mapCategoria(c[1]), brand: (c[2] || '').trim(), supplier: (c[3] || '').trim(),
+            buyForm: (c[4] || '').trim(), cantidad: Number(c[5]) || 0, unidad: (c[6] || 'kg').trim(),
+            valorBruto: Number(c[7]) || 0, merma: Number(c[9]) || 0, reduccion: Number(c[10]) || 0,
+          };
+          const idx = next.findIndex((r) => r.name.trim().toLowerCase() === name.toLowerCase());
+          if (idx >= 0) next[idx] = { ...next[idx], ...parsed };
+          else next.push({ ...parsed, id: `rend-${Date.now()}-${i}` });
+        }
+        persist(next);
+        alert(`Importación completa: ${lines.length - 1} filas procesadas.`);
+      } catch {
+        alert('No se pudo leer el archivo. Usa el mismo formato del export (CSV).');
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+    e.target.value = '';
+  }
+
   const EditNum = ({ r, field, suffix }) => (
     <input
       type="number"
@@ -135,6 +170,8 @@ export default function RendimientosPanel({ supplyItems = [] }) {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={exportCSV}><Download className="w-4 h-4 mr-1.5" /> Exportar</Button>
+          <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={importCSV} />
+          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload className="w-4 h-4 mr-1.5" /> Importar</Button>
           <Button size="sm" className="bg-noa-navy hover:bg-noa-navy-mid" onClick={() => setEditing({ id: '', name: '', brand: '', supplier: '', buyForm: '', cantidad: 1, unidad: 'kg', valorBruto: 0, merma: 0, reduccion: 0, category: CATEGORIAS[0] })}>
             <Plus className="w-4 h-4 mr-1.5" /> Nuevo insumo
           </Button>

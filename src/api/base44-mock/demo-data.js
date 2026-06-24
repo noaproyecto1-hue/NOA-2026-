@@ -10,7 +10,7 @@
 import { store } from './store.js';
 
 const RID = 'rest_demo_1';
-const FLAG = 'noa_demo_loaded_v3';
+const FLAG = 'noa_demo_loaded_v4';
 
 const rnd = (min, max) => min + Math.random() * (max - min);
 const rndInt = (min, max) => Math.floor(rnd(min, max + 1));
@@ -199,25 +199,38 @@ export async function loadDemoData({ force = false } = {}) {
     orders_count: rndInt(80, 600), period: new Date().toISOString().slice(0, 7),
   }));
 
-  // ── OpEx (gastos operacionales) — alimenta los donuts del Dashboard ──
-  // Tipos: payroll (RRHH), rent (Renta), utilities/insurance (Gastos fijos),
-  //        marketing, maintenance (Administración).
+  // ── OpEx (gastos operacionales) — con subcategorías por centro ──
+  // Cada item: [type, cost_center_name, subcategoria, montoBase]
   const OPEX_PLAN = [
-    ['payroll', 'PAYROLL/RRHH', 15200000],
-    ['rent', 'REAL STATE/RENTA', 1825000],
-    ['utilities', 'GASTOS FIJOS', 720000],
-    ['insurance', 'GASTOS FIJOS', 280000],
-    ['maintenance', 'ADMINISTRACIÓN', 410000],
-    ['marketing', 'MARKETING', 608000],
+    // RRHH por área (planilla)
+    ['payroll', 'PAYROLL/RRHH', 'Gerencia', 5200000],
+    ['payroll', 'PAYROLL/RRHH', 'Administración', 3800000],
+    ['payroll', 'PAYROLL/RRHH', 'Operaciones', 6200000],
+    // Real State
+    ['rent', 'REAL STATE/RENTA', 'Arriendo', 1500000],
+    ['rent', 'REAL STATE/RENTA', 'Gasto común', 180000],
+    ['insurance', 'REAL STATE/RENTA', 'Seguros', 95000],
+    ['utilities', 'REAL STATE/RENTA', 'Alarma', 50000],
+    // Gastos básicos
+    ['utilities', 'GASTOS FIJOS', 'Agua', 180000],
+    ['utilities', 'GASTOS FIJOS', 'Luz', 320000],
+    ['utilities', 'GASTOS FIJOS', 'Gas', 140000],
+    ['utilities', 'GASTOS FIJOS', 'Internet', 80000],
+    // Marketing
+    ['marketing', 'MARKETING', 'Marketing digital', 408000],
+    ['marketing', 'MARKETING', 'Material gráfico', 200000],
+    // Administración
+    ['maintenance', 'ADMINISTRACIÓN', 'Contabilidad', 250000],
+    ['technology', 'ADMINISTRACIÓN', 'Software / sistemas', 160000],
   ];
   const opex = [];
-  for (let monthsBack = 2; monthsBack >= 0; monthsBack--) {
-    for (const [type, center, base] of OPEX_PLAN) {
-      const amount = Math.round(base * rnd(0.95, 1.05));
+  for (let monthsBack = 11; monthsBack >= 0; monthsBack--) {
+    for (const [type, center, sub, base] of OPEX_PLAN) {
+      const amount = Math.round(base * rnd(0.95, 1.06));
       opex.push({
-        restaurant_id: RID, type, cost_center_name: center, amount,
-        date: isoDaysAgo(monthsBack * 30 + 5), payment_status: 'pagado',
-        description: `${center} — mensual`,
+        restaurant_id: RID, type, cost_center_name: center, subcategoria: sub, amount,
+        date: isoDaysAgo(monthsBack * 30 + 5), payment_status: pick(['pagado', 'pagado', 'pendiente']),
+        description: sub,
       });
     }
   }
@@ -246,8 +259,7 @@ export async function clearDemoData() {
     store.bulkCreate(e, [], { replace: true });
   }
   localStorage.removeItem(FLAG);
-  localStorage.removeItem('noa_demo_loaded_v1');
-  localStorage.removeItem('noa_demo_loaded_v2');
+  ['noa_demo_loaded_v1', 'noa_demo_loaded_v2', 'noa_demo_loaded_v3'].forEach((k) => localStorage.removeItem(k));
   localStorage.removeItem('noa_familias_extra');
   console.info('[demo] Datos de demostración borrados.');
 }

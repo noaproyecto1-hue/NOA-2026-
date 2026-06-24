@@ -59,22 +59,40 @@ export default function CostosOperacionales() {
   });
 
   const [expanded, setExpanded] = useState({});
+  const [subExpanded, setSubExpanded] = useState({});
   const [form, setForm] = useState(null);
+  const [periodo, setPeriodo] = useState('mes'); // 'mes' | '6m' | 'anio'
 
   const now = new Date();
-  const ventaMes = useMemo(() => sales.filter((s) => { const d = new Date(s.date_time); return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); }).reduce((a, s) => a + (Number(s.total_amount) || 0), 0), [sales]);
+  // Rango según período seleccionado
+  const desde = useMemo(() => {
+    const d = new Date(now);
+    if (periodo === 'mes') return new Date(now.getFullYear(), now.getMonth(), 1);
+    if (periodo === '6m') { d.setMonth(d.getMonth() - 5); return new Date(d.getFullYear(), d.getMonth(), 1); }
+    d.setMonth(d.getMonth() - 11); return new Date(d.getFullYear(), d.getMonth(), 1);
+  }, [periodo, now]);
 
-  // Agrupa OpEx por centro de costo
+  const opexFiltrado = useMemo(() => opex.filter((o) => new Date(o.date) >= desde), [opex, desde]);
+  const ventaPeriodo = useMemo(() => sales.filter((s) => new Date(s.date_time) >= desde).reduce((a, s) => a + (Number(s.total_amount) || 0), 0), [sales, desde]);
+  const ventaMes = ventaPeriodo;
+
+  // Agrupa OpEx por centro → subcategoría → entradas
   const grupos = useMemo(() => {
     const map = {};
-    for (const o of opex) {
+    for (const o of opexFiltrado) {
       const center = o.cost_center_name || TYPE_TO_CENTER[o.type] || 'OTROS';
-      if (!map[center]) map[center] = { name: center, total: 0, entries: [] };
+      const sub = o.subcategoria || o.description || o.type || 'General';
+      if (!map[center]) map[center] = { name: center, total: 0, subs: {} };
       map[center].total += Number(o.amount) || 0;
-      map[center].entries.push(o);
+      if (!map[center].subs[sub]) map[center].subs[sub] = { name: sub, total: 0, entries: [] };
+      map[center].subs[sub].total += Number(o.amount) || 0;
+      map[center].subs[sub].entries.push(o);
     }
-    return Object.values(map).sort((a, b) => b.total - a.total);
-  }, [opex]);
+    return Object.values(map).map((g) => ({
+      ...g,
+      subsList: Object.values(g.subs).sort((a, b) => b.total - a.total),
+    })).sort((a, b) => b.total - a.total);
+  }, [opexFiltrado]);
 
   const totalOpex = grupos.reduce((s, g) => s + g.total, 0);
 
@@ -102,11 +120,19 @@ export default function CostosOperacionales() {
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-noa-navy flex items-center gap-2 font-display"><Wallet className="w-6 h-6 text-noa-orange" /> Costos Operacionales</h1>
-          <p className="text-gray-600 mt-1">Gastos por centro de costo. Pincha una familia para ver sus facturas.</p>
+          <p className="text-gray-600 mt-1">Centro de costo → familia → facturas. Pincha para desplegar.</p>
         </div>
-        <Button className="bg-noa-navy hover:bg-noa-navy-mid" onClick={() => setForm({ center: CENTROS[0], amount: '', date: new Date().toISOString().slice(0, 10), payment_status: 'pagado', description: '', invoice_number: '' })}>
-          <Plus className="w-4 h-4 mr-1.5" /> Agregar gasto manual
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Toggle de período */}
+          <div className="flex rounded-lg border overflow-hidden">
+            {[['mes', 'Mes actual'], ['6m', '6 meses'], ['anio', '1 año']].map(([k, lbl]) => (
+              <button key={k} onClick={() => setPeriodo(k)} className={`px-3 py-1.5 text-xs ${periodo === k ? 'bg-noa-navy text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>{lbl}</button>
+            ))}
+          </div>
+          <Button className="bg-noa-navy hover:bg-noa-navy-mid" onClick={() => setForm({ center: CENTROS[0], amount: '', date: new Date().toISOString().slice(0, 10), payment_status: 'pagado', description: '', invoice_number: '' })}>
+            <Plus className="w-4 h-4 mr-1.5" /> Agregar gasto manual
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -122,7 +148,7 @@ export default function CostosOperacionales() {
           <Table>
             <TableHeader><TableRow>
               <TableHead>Centro de costo / Familia</TableHead>
-              <TableHead className="text-right">Facturas</TableHead>
+              <TableHead className="text-right">Ítems</TableHead>
               <TableHead className="text-right">% sobre venta</TableHead>
               <TableHead className="text-right">Total</TableHead>
             </TableRow></TableHeader>
@@ -133,35 +159,57 @@ export default function CostosOperacionales() {
                 const color = CENTER_COLOR(g.name);
                 return (
                   <React.Fragment key={g.name}>
+                    {/* Nivel 1: centro de costo */}
                     <TableRow className="cursor-pointer transition-colors" style={{ background: isOpen ? `${color}10` : undefined }} onClick={() => setExpanded((e) => ({ ...e, [g.name]: !e[g.name] }))}>
                       <TableCell className="font-medium" style={{ borderLeft: `4px solid ${color}` }}>
                         <span className="inline-flex items-center gap-1.5 text-noa-navy">
                           {isOpen ? <ChevronDown className="w-4 h-4" style={{ color }} /> : <ChevronRight className="w-4 h-4" style={{ color }} />}
                           <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                          {g.name} <span className="text-gray-400 text-xs">({g.entries.length})</span>
+                          {g.name} <span className="text-gray-400 text-xs">({g.subsList.length})</span>
                         </span>
                       </TableCell>
-                      <TableCell className="text-right text-xs">{g.entries.length}</TableCell>
+                      <TableCell className="text-right text-xs">{g.subsList.length}</TableCell>
                       <TableCell className="text-right text-xs font-semibold" style={{ color }}>{pctVenta.toFixed(1)}%</TableCell>
                       <TableCell className="text-right text-xs font-bold" style={{ color }}>{clp(g.total)}</TableCell>
                     </TableRow>
-                    {isOpen && g.entries.sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((o) => (
-                      <TableRow key={o.id} className="bg-gray-50/50">
-                        <TableCell className="pl-10 text-xs text-gray-700">
-                          {o.description || o.invoice_number || 'Gasto'} <span className="text-gray-400">· {fdate(o.date)}</span>
-                          {o.payment_status && <Badge variant="outline" className="ml-2 text-[10px]">{o.payment_status}</Badge>}
-                        </TableCell>
-                        <TableCell className="text-xs text-gray-500 text-right">{o.invoice_number || '—'}</TableCell>
-                        <TableCell></TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="text-xs font-medium">{clp(o.amount)}</span>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setForm({ id: o.id, center: o.cost_center_name || 'OTROS', amount: o.amount, date: (o.date || '').slice(0, 10), payment_status: o.payment_status || 'pagado', description: o.description || '', invoice_number: o.invoice_number || '' }); }}><Pencil className="w-3.5 h-3.5 text-gray-500" /></Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); removeExpense(o.id); }}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {/* Nivel 2: subcategorías (familias) */}
+                    {isOpen && g.subsList.map((sub) => {
+                      const subKey = `${g.name}::${sub.name}`;
+                      const subOpen = subExpanded[subKey];
+                      return (
+                        <React.Fragment key={subKey}>
+                          <TableRow className="bg-gray-50/60 cursor-pointer" onClick={() => setSubExpanded((e) => ({ ...e, [subKey]: !e[subKey] }))}>
+                            <TableCell className="pl-10 text-xs font-medium text-gray-700">
+                              <span className="inline-flex items-center gap-1.5">
+                                {subOpen ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />}
+                                {sub.name} <span className="text-gray-400">({sub.entries.length})</span>
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right text-xs">{sub.entries.length}</TableCell>
+                            <TableCell className="text-right text-xs text-gray-500">{ventaMes > 0 ? (sub.total / ventaMes * 100).toFixed(1) : '0'}%</TableCell>
+                            <TableCell className="text-right text-xs font-semibold">{clp(sub.total)}</TableCell>
+                          </TableRow>
+                          {/* Nivel 3: facturas/gastos */}
+                          {subOpen && [...sub.entries].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((o) => (
+                            <TableRow key={o.id} className="bg-white">
+                              <TableCell className="pl-16 text-xs text-gray-600">
+                                {fdate(o.date)} {o.invoice_number ? `· Folio ${o.invoice_number}` : ''}
+                                {o.payment_status && <Badge variant="outline" className="ml-2 text-[10px]">{o.payment_status}</Badge>}
+                              </TableCell>
+                              <TableCell></TableCell>
+                              <TableCell></TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <span className="text-xs font-medium">{clp(o.amount)}</span>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setForm({ id: o.id, center: o.cost_center_name || 'OTROS', amount: o.amount, date: (o.date || '').slice(0, 10), payment_status: o.payment_status || 'pagado', description: o.description || '', invoice_number: o.invoice_number || '' }); }}><Pencil className="w-3.5 h-3.5 text-gray-500" /></Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); removeExpense(o.id); }}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })}
                   </React.Fragment>
                 );
               })}

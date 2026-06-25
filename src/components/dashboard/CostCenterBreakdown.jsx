@@ -29,7 +29,7 @@ const HEALTH_GRADIENTS = {
 
 const FAMILY_COLORS = {
   foodCost: { fill: '#f97316', gradient: 'from-orange-400 to-amber-500' },
-  payroll: { fill: '#6366f1', gradient: 'from-indigo-400 to-purple-500' },
+  payroll: { fill: '#47587A', gradient: 'from-indigo-400 to-purple-500' },
   opex: { fill: '#3b82f6', gradient: 'from-blue-400 to-cyan-500' }
 };
 

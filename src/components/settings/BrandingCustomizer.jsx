@@ -32,7 +32,7 @@ import { motion } from "framer-motion";
 // Colores por defecto del sistema
 const DEFAULT_THEME = {
   primary: '#3B82F6',
-  secondary: '#6366F1', 
+  secondary: '#47587A', 
   accent: '#F59E0B',
   name: 'Azul Estándar',
   logo_url: null

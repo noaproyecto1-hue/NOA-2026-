@@ -43,7 +43,7 @@ export default function MonthlyEvolutionChart({
   title = "Evolución Mensual",
   dataKey = "value",
   name = "Valor",
-  color = "#7c3aed",
+  color = "#324367",
   currency = "USD",
   showArea = true
 }) {

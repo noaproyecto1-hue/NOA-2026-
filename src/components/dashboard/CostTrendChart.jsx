@@ -36,7 +36,7 @@ const CustomTooltip = ({ active, payload, currency }) => {
   const data = payload[0]?.payload;
   const items = [
     { label: 'Costo de Venta', value: data?.foodCost, percent: data?.foodCostPercent, color: '#f59e0b' },
-    { label: 'Costo Personal', value: data?.payroll, percent: data?.payrollPercent, color: '#a78bfa' },
+    { label: 'Costo Personal', value: data?.payroll, percent: data?.payrollPercent, color: '#6E81A1' },
     { label: 'OPEX', value: data?.opexAmount, percent: data?.opexPercent, color: '#22d3ee' },
   ];
   return (
@@ -220,7 +220,7 @@ export default function CostTrendChart({ sales = [], supplyCosts = [], opex = []
       dataKeyPercent: 'foodCostPercent', dataKeyAmount: 'foodCost',
     },
     {
-      id: 'payroll', label: 'COSTO PERSONAL', icon: Users, color: '#a78bfa', stroke: '#8b5cf6',
+      id: 'payroll', label: 'COSTO PERSONAL', icon: Users, color: '#6E81A1', stroke: '#47587A',
       value: viewMode === 'percent' ? `${latestData.payrollPercent?.toFixed(1) || 0}%` : formatCurrency(latestData.payroll || 0, currency, { compact: true }),
       subValue: viewMode === 'percent' ? formatCurrency(latestData.payroll || 0, currency, { compact: true }) : `${latestData.payrollPercent?.toFixed(1) || 0}%`,
       trend: payrollTrend, bgGlow: 'from-violet-500/10 to-violet-600/5', borderGlow: 'border-violet-500/20', activeRing: 'ring-violet-400/30',
@@ -374,7 +374,7 @@ export default function CostTrendChart({ sales = [], supplyCosts = [], opex = []
                   />
                   <Tooltip content={<CustomTooltip currency={currency} />} cursor={{ fill: t.cursorFill }} />
                   {isMetricActive('foodCost') && <Bar dataKey={viewMode === 'percent' ? 'foodCostPercent' : 'foodCost'} fill="#f59e0b" shape={<RoundedBar />} />}
-                  {isMetricActive('payroll') && <Bar dataKey={viewMode === 'percent' ? 'payrollPercent' : 'payroll'} fill="#a78bfa" shape={<RoundedBar />} />}
+                  {isMetricActive('payroll') && <Bar dataKey={viewMode === 'percent' ? 'payrollPercent' : 'payroll'} fill="#6E81A1" shape={<RoundedBar />} />}
                   {isMetricActive('opex') && <Bar dataKey={viewMode === 'percent' ? 'opexPercent' : 'opexAmount'} fill="#22d3ee" shape={<RoundedBar />} />}
                   {activeMetric !== 'all' && (
                     <Line type="monotone" dataKey={viewMode === 'percent' ? metrics.find(m => m.id === activeMetric)?.dataKeyPercent : metrics.find(m => m.id === activeMetric)?.dataKeyAmount}
@@ -390,9 +390,9 @@ export default function CostTrendChart({ sales = [], supplyCosts = [], opex = []
                       <stop offset="100%" stopColor="#f59e0b" stopOpacity={t.gradOpacity[2]} />
                     </linearGradient>
                     <linearGradient id="gPayroll" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#a78bfa" stopOpacity={t.gradOpacity[0]} />
-                      <stop offset="50%" stopColor="#a78bfa" stopOpacity={t.gradOpacity[1]} />
-                      <stop offset="100%" stopColor="#a78bfa" stopOpacity={t.gradOpacity[2]} />
+                      <stop offset="0%" stopColor="#6E81A1" stopOpacity={t.gradOpacity[0]} />
+                      <stop offset="50%" stopColor="#6E81A1" stopOpacity={t.gradOpacity[1]} />
+                      <stop offset="100%" stopColor="#6E81A1" stopOpacity={t.gradOpacity[2]} />
                     </linearGradient>
                     <linearGradient id="gOpex" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#22d3ee" stopOpacity={t.gradOpacity[0]} />
@@ -419,9 +419,9 @@ export default function CostTrendChart({ sales = [], supplyCosts = [], opex = []
                   )}
                   {isMetricActive('payroll') && (
                     <Area type="monotone" dataKey={viewMode === 'percent' ? 'payrollPercent' : 'payroll'}
-                      stroke="#a78bfa" strokeWidth={2.5} fill="url(#gPayroll)"
-                      dot={{ fill: t.dotFill, stroke: '#a78bfa', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 7, fill: '#a78bfa', stroke: t.dotFill, strokeWidth: 3, filter: isDark ? 'url(#glV)' : undefined }}
+                      stroke="#6E81A1" strokeWidth={2.5} fill="url(#gPayroll)"
+                      dot={{ fill: t.dotFill, stroke: '#6E81A1', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 7, fill: '#6E81A1', stroke: t.dotFill, strokeWidth: 3, filter: isDark ? 'url(#glV)' : undefined }}
                     />
                   )}
                   {isMetricActive('opex') && (

@@ -12,7 +12,7 @@ import {
 export default function MarginGauge({ 
   title,
   value,
-  color = "#7c3aed",
+  color = "#324367",
   bgColor = "#e9d5ff",
   invertColor = false, // Para métricas donde menor es mejor (ej: % costo)
   tooltip = "", // Explicación de la métrica

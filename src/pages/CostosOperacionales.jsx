@@ -26,7 +26,7 @@ function CENTER_COLOR(name) {
   if (n.includes('RENTA') || n.includes('REAL STATE')) return '#F59E0B'; // naranja firma
   if (n.includes('GASTOS FIJOS') || n.includes('OPERAC')) return '#0EA5E9'; // info
   if (n.includes('ADMIN')) return '#16A34A'; // success
-  if (n.includes('MARKETING')) return '#EC4899'; // rosa
+  if (n.includes('MARKETING')) return '#47587A'; // rosa
   return '#64748B'; // slate
 }
 const TYPE_TO_CENTER = {

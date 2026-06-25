@@ -23,7 +23,7 @@ const BADGE_STYLE = {
   '⭐⭐ El más pedido': { bg: 'rgba(245,158,11,0.28)', color: '#FBBF24', border: 'rgba(245,158,11,0.6)' },
   'KETO': { bg: 'rgba(34,197,94,0.18)', color: '#4ADE80', border: 'rgba(34,197,94,0.4)' },
   'Sin Azúcar': { bg: 'rgba(59,130,246,0.18)', color: '#60A5FA', border: 'rgba(59,130,246,0.4)' },
-  'Gluten Free': { bg: 'rgba(168,85,247,0.18)', color: '#C084FC', border: 'rgba(168,85,247,0.4)' },
+  'Gluten Free': { bg: 'rgba(168,85,247,0.18)', color: '#6E81A1', border: 'rgba(168,85,247,0.4)' },
 };
 const BADGE_OPCIONES = Object.keys(BADGE_STYLE);
 

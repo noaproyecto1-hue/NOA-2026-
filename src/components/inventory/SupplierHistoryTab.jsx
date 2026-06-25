@@ -13,7 +13,7 @@ import { parseISO } from 'date-fns';
 
 const PAGE_SIZE = 10;
 
-const COLORS = ['#6366f1', '#10b981', '#f43f5e', '#f97316', '#8b5cf6', '#0ea5e9', '#ec4899', '#14b8a6', '#eab308', '#3b82f6'];
+const COLORS = ['#47587A', '#10b981', '#f43f5e', '#f97316', '#47587A', '#0ea5e9', '#47587A', '#14b8a6', '#eab308', '#3b82f6'];
 const GRADIENTS = [
   'from-indigo-500 to-blue-600',
   'from-emerald-500 to-teal-600',

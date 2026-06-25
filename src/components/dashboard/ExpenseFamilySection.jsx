@@ -14,10 +14,10 @@ import { es } from 'date-fns/locale';
 
 // Paleta de colores bien diferenciados
 const PALETTE = [
-  '#f97316', '#6366f1', '#10b981', '#ef4444', '#8b5cf6',
-  '#ec4899', '#06b6d4', '#eab308', '#14b8a6', '#f43f5e',
-  '#a855f7', '#64748b', '#84cc16', '#d946ef', '#0ea5e9',
-  '#fb923c', '#4f46e5', '#059669', '#dc2626', '#7c3aed'
+  '#f97316', '#47587A', '#10b981', '#ef4444', '#47587A',
+  '#47587A', '#06b6d4', '#eab308', '#14b8a6', '#f43f5e',
+  '#47587A', '#64748b', '#84cc16', '#47587A', '#0ea5e9',
+  '#fb923c', '#324367', '#059669', '#dc2626', '#324367'
 ];
 
 // Shapes para puntos (recharts dot shapes)
@@ -210,7 +210,7 @@ export default function ExpenseFamilySection({
               <div className="flex items-center gap-3">
                 <Badge className="text-lg px-3 py-1" style={{
                   backgroundColor: color.includes('orange') ? '#fff7ed' : color.includes('indigo') ? '#eef2ff' : '#eff6ff',
-                  color: color.includes('orange') ? '#c2410c' : color.includes('indigo') ? '#4338ca' : '#1d4ed8'
+                  color: color.includes('orange') ? '#c2410c' : color.includes('indigo') ? '#233152' : '#1d4ed8'
                 }}>
                   {formatCurrency(totalAmount, currency, { compact: true })}
                 </Badge>

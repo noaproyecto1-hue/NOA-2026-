@@ -273,8 +273,8 @@ export default function CashFlowProjectionChart({
                     <stop offset="95%" stopColor="#0891b2" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorProyectado" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#47587A" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#47587A" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorOptimista" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
@@ -352,7 +352,7 @@ export default function CashFlowProjectionChart({
                   type="monotone"
                   dataKey="flujoProyectado"
                   name="Proyectado"
-                  stroke="#6366f1"
+                  stroke="#47587A"
                   strokeWidth={2}
                   strokeDasharray="6 3"
                   fill="url(#colorProyectado)"

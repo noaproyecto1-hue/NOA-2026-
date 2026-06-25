@@ -672,7 +672,7 @@ export default function Inventory() {
 
   return (
     <>
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-100">
+    <div className="min-h-screen bg-noa-navy text-white">
       {/* Header con imagen */}
       <div className="relative overflow-hidden py-12">
         <div 
@@ -763,7 +763,7 @@ export default function Inventory() {
             </div>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-50 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-noa-navy to-transparent" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">

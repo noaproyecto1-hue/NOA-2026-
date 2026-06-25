@@ -383,7 +383,7 @@ export default function Dashboard() {
     : accessibleRestaurants[0]?.id;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-100">
+    <div className="min-h-screen bg-noa-navy text-white">
       {/* Hero Header */}
       <PageHeader
         title="Copiloto Gastronómico"
@@ -438,7 +438,7 @@ export default function Dashboard() {
         </div>
       </PageHeader>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-noa-navy">
         {/* Loading / Error state */}
         {isDashboardLoading && (
           <div className="flex items-center justify-center py-8 gap-3">

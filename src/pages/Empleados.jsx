@@ -212,7 +212,7 @@ export default function Empleados() {
   }, [selectedRestaurant, accessibleRestaurants]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-100">
+    <div className="min-h-screen bg-noa-navy text-white">
       <PageHeader
         title="Empleados"
         subtitle="Gestiona tu Team / RRHH"

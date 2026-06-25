@@ -299,7 +299,7 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
     <div ref={rootRef} className="space-y-6 font-sans">
       {/* Leyenda de zonas + botón Actualizar (Prompt 3: Favorable / Atención / Crítico) */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-4 text-xs text-gray-600">
+        <div className="flex items-center gap-4 text-xs text-white/70">
           <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: STATUS_STYLE.favorable.dot }} /> Favorable</span>
           <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: STATUS_STYLE.atencion.dot }} /> Atención</span>
           <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: STATUS_STYLE.critico.dot }} /> Crítico</span>
@@ -376,8 +376,8 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
 
       {/* KPIs */}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">KPIs</p>
-        <span className="text-xs text-gray-500">Período: {DEMO_MODE ? DEMO_CASA.periodo : `mes en curso · día ${K.diasAcum}`}</span>
+        <p className="text-xs font-semibold text-white/60 uppercase tracking-widest">KPIs</p>
+        <span className="text-xs text-white/60">Período: {DEMO_MODE ? DEMO_CASA.periodo : `mes en curso · día ${K.diasAcum}`}</span>
       </div>
       <div className="space-y-2">
         {/* Promedio de Venta Diaria (Prompt 4) */}
@@ -411,7 +411,7 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
       </div>
 
       {/* Leyenda de barras */}
-      <div className="flex items-center gap-4 text-xs text-gray-600">
+      <div className="flex items-center gap-4 text-xs text-white/70">
         <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#378ADD' }} /> sobre meta / bajo límite</span>
         <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#E24B4A' }} /> bajo meta / sobre límite</span>
       </div>

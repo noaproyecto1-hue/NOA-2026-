@@ -83,7 +83,7 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-noa-navy">
+    <div className="min-h-screen bg-noa-navy text-white">
       {/* Header */}
       <header className="relative z-10">
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

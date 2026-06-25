@@ -26,17 +26,21 @@ export const DEMO_USER = {
 
 const DEMO_RESTAURANT = {
   id: 'rest_demo_1',
-  name: 'Restaurante Demo',
-  slug: 'demo',
-  address: 'Av. Demo 123, Santiago',
-  phone: '+56 9 0000 0000',
-  email: 'contacto@demo.cl',
+  name: 'Casa Mediterránea',
+  slug: 'casa-mediterranea',
+  address: 'Av. Diego Portales 750, Puerto Montt',
+  phone: '+56 65 2 234 567',
+  email: 'contacto@casamediterranea.cl',
   is_active: true,
   created_by: DEMO_USER.email,
   currency: 'CLP',
   timezone: 'America/Santiago',
-  cuisine_type: 'general',
-  capacity: 40,
+  cuisine_type: 'mediterranea',
+  capacity: 80,
+  config: {
+    monthly_sales_target: 70000000,
+    ideal_stock_percent: 10,
+  },
 };
 
 const DEMO_SUPPLY_ITEMS = [

@@ -436,6 +436,19 @@ function FamiliaRecuadro({ titulo, subtitulo, familias, monthsCols, salesNetByMo
             {familias.length === 0 && (
               <TableRow><TableCell colSpan={monthsCols.length + 1} className="text-center text-xs text-gray-400 py-4">Sin movimientos en este grupo este año.</TableCell></TableRow>
             )}
+            {familias.length > 0 && (
+              <TableRow className="bg-noa-navy/5 border-t-2 border-noa-navy/20">
+                <TableCell className="font-bold text-noa-navy">Total {titulo === 'Gastos Directos de Fabricación' ? 'compras' : 'operacional'}</TableCell>
+                {monthsCols.map((m) => {
+                  const total = familias.reduce((a, f) => a + (f.byMonth[m] || 0), 0);
+                  return (
+                    <TableCell key={m} className={`text-right font-bold ${m === cur ? 'text-noa-info' : 'text-noa-navy'}`}>
+                      {total ? clpK(total) : '—'}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>

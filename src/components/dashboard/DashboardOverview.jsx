@@ -134,7 +134,6 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
   const [editFijos, setEditFijos] = useState(false);
   const [fijos, setFijos] = useState(loadOpexFijos);
   const META_MENSUAL = DEMO_MODE ? DEMO_CASA.metaMensual : cfg.metaMensual;
-  const META_DIARIA = DEMO_MODE ? DEMO_CASA.metaDiaria : META_MENSUAL / daysInMonth;
   const UTIL_OBJETIVO = DEMO_MODE ? DEMO_CASA.utilPct : cfg.utilPct;
   const COSTO_BM = cfg.costoDirectoBM;
   const utilidadObjetivoMonto = META_MENSUAL * UTIL_OBJETIVO / 100;
@@ -184,8 +183,6 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
     const bruto = ventas.reduce((a, s) => a + (Number(s.total_amount) || 0), 0);
     return { bruto, neto: Math.round(bruto / 1.19), count: ventas.length, hasFudo };
   }, [sales, fudoSync, today]);
-  const ventaColor = ventaCard.bruto >= META_DIARIA ? '#1D9E75' : ventaCard.bruto >= META_DIARIA * 0.7 ? '#F59E0B' : '#DC2626';
-  const ventaPct = META_DIARIA > 0 ? Math.min(100, ventaCard.bruto / META_DIARIA * 100) : 0;
 
   // ── Cálculo de KPIs sobre VENTA NETA (Prompt 5 + Prompt 9) ──
   const M = useMemo(() => {
@@ -208,7 +205,6 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
     const ventaNetaHoy = netByDay[refToday] || 0;
     const promedioDiarioReal = diasConVenta.length ? ventaNetaAcum / diasConVenta.length : 0;
     const ventaProj = promedioDiarioReal * operDays;
-    const promedioNecesario = META_MENSUAL / Math.max(1, operDays);
 
     // Compras NETAS (sin IVA), comparables contra la venta neta — igual que Compras 11C.
     const netoCompra = (c) => Number(c.subtotal) || (Number(c.total_cost) || 0) / 1.19;
@@ -230,6 +226,13 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
     const opexAcum = fijoDiario * operElapsed + opexVarAcum;
     const opexProj = fijoDiario * operDays + opexVarDiario * operDays;
 
+    // Meta de venta diaria = (Food + OPEX + RRHH proyectados + utilidad esperada) ÷ días operativos.
+    const utilObj = DEMO_MODE ? DEMO_CASA.utilPct : (cfg.utilPct || 15);
+    const costosProy = compraProj + opexProj;                 // food + opex (incluye RRHH)
+    const metaVentaMensual = utilObj < 100 ? costosProy / (1 - utilObj / 100) : costosProy;
+    const metaDiaria = metaVentaMensual / Math.max(1, operDays);
+    const promedioNecesario = metaDiaria;
+
     // Utilidad sobre venta neta
     const utilHoy = ventaNetaHoy - compraHoy - opexHoy;
     const utilAcum = ventaNetaAcum - compraAcum - opexAcum;
@@ -249,14 +252,14 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
 
     return {
       ventaHoy: ventaNetaHoy, ventaAcum: ventaNetaAcum, ventaProj, ventaDiaProm: promedioDiarioReal,
-      promedioNecesario,
+      promedioNecesario, metaDiaria, metaVentaMensual,
       compraHoy, compraAcum, compraProj, ratioCompraVenta,
       opexHoy, opexAcum, opexProj, opexPct,
       laborPct, opexScorePct,
       utilHoy, utilAcum, utilProj, margenHoy, margenNeto, margenProj,
       diasAcum: diasConVenta.length || selDia,
     };
-  }, [sales, supplyCosts, opex, fijos, today, META_MENSUAL, tz]);
+  }, [sales, supplyCosts, opex, fijos, today, META_MENSUAL, cfg.utilPct, tz]);
 
   // Objeto unificado de KPIs (demo o real)
   const K = DEMO_MODE ? {
@@ -268,6 +271,11 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
     utilHoy: DEMO_CASA.utilHoy, utilAcum: DEMO_CASA.utilAcum, utilProj: DEMO_CASA.utilProj,
     margenHoy: DEMO_CASA.margenHoy, margenNeto: DEMO_CASA.margenNeto, margenProj: DEMO_CASA.margenProj,
   } : M;
+
+  // Meta de venta diaria (calculada desde costos + utilidad esperada) y color/% de la venta de hoy.
+  const META_DIARIA = DEMO_MODE ? DEMO_CASA.metaDiaria : (K.metaDiaria || META_MENSUAL / Math.max(1, daysInMonth));
+  const ventaColor = ventaCard.bruto >= META_DIARIA ? '#1D9E75' : ventaCard.bruto >= META_DIARIA * 0.7 ? '#F59E0B' : '#DC2626';
+  const ventaPct = META_DIARIA > 0 ? Math.min(100, ventaCard.bruto / META_DIARIA * 100) : 0;
 
   // NOA Score ponderado: OPEX 40% · Food 25% · Labor 20% · Tendencia 15% (imagen).
   const noa = useMemo(() => {

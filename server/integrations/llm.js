@@ -10,7 +10,7 @@
 const DEFAULT_MAX_TOKENS = 1024;
 
 const DEFAULT_MODELS = {
-  anthropic: 'claude-opus-4-7',
+  anthropic: 'claude-sonnet-4-6',
   openai: 'gpt-4o',
   gemini: 'gemini-1.5-pro',
   deepseek: 'deepseek-chat',

@@ -10,7 +10,7 @@
 import { store } from './store.js';
 
 const RID = 'rest_demo_1';
-const FLAG = 'noa_real_loaded_v2';
+const FLAG = 'noa_real_loaded_v3';
 const URL = '/noa-real-data.json';
 
 export async function loadDemoData({ force = false } = {}) {
@@ -23,7 +23,9 @@ export async function loadDemoData({ force = false } = {}) {
 
   let data;
   try {
-    const res = await fetch(URL, { cache: 'force-cache' });
+    // Versionado + sin caché: evita servir el archivo de datos viejo desde el
+    // caché del navegador (antes con force-cache se quedaba pegado al dataset pesado).
+    const res = await fetch(`${URL}?v=${FLAG}`, { cache: 'reload' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     data = await res.json();
   } catch (e) {

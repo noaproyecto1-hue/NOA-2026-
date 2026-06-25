@@ -961,7 +961,7 @@ export default function Inventory() {
               <CardHeader className="pb-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <div className="w-10 h-10 bg-noa-navy rounded-xl flex items-center justify-center shadow-lg">
                       <Carrot className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -1017,7 +1017,7 @@ export default function Inventory() {
                       <Button onClick={exportInventoryToXlsx} variant="outline" className="h-11 rounded-xl border-gray-200 bg-white shadow-sm hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200">
                         <Download className="w-4 h-4 mr-2" /> Descargar XLSX
                       </Button>
-                      <Button onClick={handleNewSupply} className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl h-11 px-5">
+                      <Button onClick={handleNewSupply} className="bg-noa-orange text-noa-navy hover:bg-noa-orange-dk shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl h-11 px-5">
                         <Plus className="w-4 h-4 mr-2" /> Nuevo Insumo
                       </Button>
                     </>
@@ -1277,7 +1277,7 @@ export default function Inventory() {
                                 <Carrot className="w-8 h-8 text-green-400" />
                               </div>
                               <p className="text-gray-500 font-medium">No hay insumos registrados</p>
-                              <Button onClick={handleNewSupply} className="mt-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl shadow-lg">
+                              <Button onClick={handleNewSupply} className="mt-2 bg-noa-orange text-noa-navy hover:bg-noa-orange-dk rounded-xl shadow-lg">
                                 <Plus className="w-4 h-4 mr-2" /> Agregar primer insumo
                               </Button>
                             </div>

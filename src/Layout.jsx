@@ -249,7 +249,7 @@ export default function Layout({ children, currentPageName }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-100" translate="no">
+    <div className="min-h-screen bg-noa-navy" translate="no">
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-black px-4 py-3 shadow-md">
         <div className="flex items-center justify-between">

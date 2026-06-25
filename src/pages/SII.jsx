@@ -284,10 +284,10 @@ export default function SII() {
   const [appliedTo, setAppliedTo] = useState(to);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 max-w-7xl mx-auto space-y-6 text-white">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">SII — Registro de Compras y Ventas</h1>
-        <p className="text-gray-600 mt-1">Consulta el RCV del SII vía SimpleAPI por rango de fechas.</p>
+        <h1 className="text-2xl font-bold text-white">SII — Registro de Compras y Ventas</h1>
+        <p className="text-white/70 mt-1">Consulta el RCV del SII vía SimpleAPI por rango de fechas.</p>
       </div>
 
       <Card>

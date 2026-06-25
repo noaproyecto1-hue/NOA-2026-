@@ -131,7 +131,7 @@ export default function CartaPanel({ onUpdateRecipePrice, recipeNames = [] }) {
     if (!cartaRef.current) return;
     const html2canvas = (await import('html2canvas')).default;
     const { jsPDF } = await import('jspdf');
-    const canvas = await html2canvas(cartaRef.current, { scale: 2, backgroundColor: '#0b0d12' });
+    const canvas = await html2canvas(cartaRef.current, { scale: 2, backgroundColor: '#0C1B33' });
     const img = canvas.toDataURL('image/png');
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const w = pdf.internal.pageSize.getWidth();
@@ -202,7 +202,7 @@ export default function CartaPanel({ onUpdateRecipePrice, recipeNames = [] }) {
       <p className="text-xs text-gray-500">Los precios se muestran con IVA incluido (precio de venta al público). Editar un precio aquí actualiza también la receta asociada.</p>
 
       {/* Carta (renderizada en componente, no imagen) */}
-      <div ref={cartaRef} className="rounded-2xl p-6 md:p-8" style={{ background: 'linear-gradient(160deg, #0b0d12 0%, #14181f 100%)' }}>
+      <div ref={cartaRef} className="rounded-2xl p-6 md:p-8" style={{ background: 'linear-gradient(160deg, #0C1B33 0%, #142240 100%)' }}>
         <div className="text-center mb-6">
           <p className="text-2xl font-bold" style={{ color: '#E0A53F', fontFamily: '"Bricolage Grotesque", sans-serif' }}>Kingdom Coffee</p>
           <p className="text-[11px] uppercase tracking-[0.3em] text-white/40 mt-1">{pagina === 'bebidas' ? 'Bebidas' : 'Comidas'}</p>

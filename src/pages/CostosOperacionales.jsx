@@ -116,11 +116,11 @@ export default function CostosOperacionales() {
   if (isLoading) return <div className="p-6 flex items-center gap-2 text-gray-500"><Loader2 className="w-5 h-5 animate-spin" /> Cargando costos…</div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
+    <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans text-white">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-noa-navy flex items-center gap-2 font-display"><Wallet className="w-6 h-6 text-noa-orange" /> Costos Operacionales</h1>
-          <p className="text-gray-600 mt-1">Centro de costo → familia → facturas. Pincha para desplegar.</p>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2 font-display"><Wallet className="w-6 h-6 text-noa-orange" /> Costos Operacionales</h1>
+          <p className="text-white/70 mt-1">Centro de costo → familia → facturas. Pincha para desplegar.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Toggle de período */}

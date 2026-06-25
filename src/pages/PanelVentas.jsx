@@ -123,11 +123,11 @@ export default function PanelVentas() {
   if (isLoading) return <div className="p-6 flex items-center gap-2 text-gray-500"><Loader2 className="w-5 h-5 animate-spin" /> Cargando ventas…</div>;
 
   return (
-    <div ref={reportRef} className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
+    <div ref={reportRef} className="p-6 max-w-7xl mx-auto space-y-6 font-sans text-white">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-noa-navy flex items-center gap-2 font-display"><BarChart3 className="w-6 h-6 text-noa-orange" /> Ventas</h1>
-          <p className="text-gray-600 mt-1">Panel de ventas: evolución, días, horas, medios de pago y canales.</p>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2 font-display"><BarChart3 className="w-6 h-6 text-noa-orange" /> Ventas</h1>
+          <p className="text-white/70 mt-1">Panel de ventas: evolución, días, horas, medios de pago y canales.</p>
         </div>
         <div className="flex gap-2" data-html2canvas-ignore="true">
           <Button onClick={exportPDF} disabled={exporting} variant="outline">

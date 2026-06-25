@@ -108,10 +108,10 @@ export default function Compras() {
   const rid = user?.restaurant_ids?.[0];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
+    <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans text-white">
       <div>
-        <h1 className="text-2xl font-bold text-noa-navy font-display">Compras</h1>
-        <p className="text-gray-600 mt-1">Gasto de insumos por familia, insumo, proveedor y fecha. Facturas y anexos del SII.</p>
+        <h1 className="text-2xl font-bold text-white font-display">Compras</h1>
+        <p className="text-white/70 mt-1">Gasto de insumos por familia, insumo, proveedor y fecha. Facturas y anexos del SII.</p>
       </div>
 
       <Tabs defaultValue="familia">

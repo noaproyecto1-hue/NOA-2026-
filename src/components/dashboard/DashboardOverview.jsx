@@ -53,6 +53,12 @@ function sundaysInMonth(year, monthIndex) {
   while (d.getMonth() === monthIndex) { if (d.getDay() === 0) count++; d.setDate(d.getDate() + 1); }
   return count;
 }
+// Días operativos (sin domingos) desde el día 1 hasta `untilDay` del mes.
+function diasOperativos(year, monthIndex, untilDay) {
+  let c = 0;
+  for (let d = 1; d <= untilDay; d++) if (new Date(year, monthIndex, d).getDay() !== 0) c++;
+  return Math.max(1, c);
+}
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 // ── NOA Score desde utilidad EBITDA (Prompt 1) ──
@@ -184,36 +190,41 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
     // Venta neta diaria (bruto Fudo / 1.19)
     const netByDay = {};
     for (const s of sales) { if (s.is_cancelled) continue; const d = saleDay(s); if (!d) continue; netByDay[d] = (netByDay[d] || 0) + (Number(s.total_amount) || 0) / 1.19; }
-    const diasConVenta = Object.keys(netByDay).filter((d) => netByDay[d] > 0);
-    const diasPrevios = diasConVenta.filter((d) => d < today);                 // excluye hoy
-    const ventaNetaAcum = diasConVenta.reduce((a, d) => a + netByDay[d], 0);   // incluye hoy
-    const ventaNetaHoy = netByDay[today] || 0;
-    // Promedio diario "Hoy" = promedio de días cerrados (sin hoy, sin días en $0)
-    const promedioHastaAyer = diasPrevios.length ? diasPrevios.reduce((a, d) => a + netByDay[d], 0) / diasPrevios.length : 0;
+    const diasConVenta = Object.keys(netByDay).filter((d) => netByDay[d] > 0).sort();
+    // Día de referencia "hoy" = último día con venta del período (o la fecha real si no hay datos).
+    const refToday = diasConVenta.length ? diasConVenta[diasConVenta.length - 1] : today;
+    const refDate = new Date(`${refToday}T12:00:00`);
+    const selY = refDate.getFullYear(), selM = refDate.getMonth();
+    const selDays = new Date(selY, selM + 1, 0).getDate();              // días del mes seleccionado
+    const selDia = refDate.getDate();                                  // día del mes de "hoy"
+    const operDays = selDays - sundaysInMonth(selY, selM);             // días operativos del mes (sin domingos)
+    const operElapsed = diasOperativos(selY, selM, selDia);           // días operativos transcurridos
+
+    const ventaNetaAcum = diasConVenta.reduce((a, d) => a + netByDay[d], 0);
+    const ventaNetaHoy = netByDay[refToday] || 0;
     const promedioDiarioReal = diasConVenta.length ? ventaNetaAcum / diasConVenta.length : 0;
-    const diasOperacionProy = daysInMonth - sundaysInMonth(now.getFullYear(), now.getMonth());
-    const ventaProj = promedioDiarioReal * diasOperacionProy;
-    const promedioNecesario = META_MENSUAL / Math.max(1, diasOperacionProy);
+    const ventaProj = promedioDiarioReal * operDays;
+    const promedioNecesario = META_MENSUAL / Math.max(1, operDays);
 
     // Compras NETAS (sin IVA), comparables contra la venta neta — igual que Compras 11C.
     const netoCompra = (c) => Number(c.subtotal) || (Number(c.total_cost) || 0) / 1.19;
     const compraAcum = supplyCosts.reduce((a, c) => a + netoCompra(c), 0);
-    const compraHoy = supplyCosts.filter((c) => (c.date || '').slice(0, 10) === today).reduce((a, c) => a + netoCompra(c), 0);
+    const compraHoy = supplyCosts.filter((c) => (c.date || '').slice(0, 10) === refToday).reduce((a, c) => a + netoCompra(c), 0);
     const diasConCompra = new Set(supplyCosts.map((c) => (c.date || '').slice(0, 10)).filter(Boolean)).size || 1;
-    const compraProj = (compraAcum / diasConCompra) * daysInMonth;
+    const compraProj = (compraAcum / diasConCompra) * selDays;
 
-    // OPEX: separar los costos FIJOS mensuales (RRHH, arriendo) — que no escalan
-    // con los días — del OPEX VARIABLE (operacional). El fijo se prorratea para el
-    // acumulado y se cuenta completo (sin escalar) en la proyección.
+    // OPEX: el gasto FIJO mensual (RRHH, arriendo, config) se divide por los días
+    // OPERATIVOS del mes (sin domingos) → cuota diaria. Se suma día a día (Hoy),
+    // acumula por días operativos transcurridos, y proyecta a los días operativos del mes.
     const esFijo = (o) => o.type === 'payroll' || o.type === 'rent';
     const fijoMensual = (opex || []).filter(esFijo).reduce((a, o) => a + (Number(o.amount) || 0), 0) + totalFijos(fijos);
-    const fijoDiario = fijoMensual / daysInMonth;
+    const fijoDiario = fijoMensual / Math.max(1, operDays);
     const opexVarAcum = (opex || []).filter((o) => !esFijo(o)).reduce((a, o) => a + (Number(o.amount) || 0), 0);
-    const opexVarHoy = (opex || []).filter((o) => !esFijo(o) && (o.date || '').slice(0, 10) === today).reduce((a, o) => a + (Number(o.amount) || 0), 0);
-    const opexVarDiario = opexVarAcum / Math.max(1, dayOfMonth);
-    const opexHoy = opexVarHoy + fijoDiario;
-    const opexAcum = fijoDiario * dayOfMonth + opexVarAcum;          // fijo prorrateado
-    const opexProj = fijoMensual + opexVarDiario * daysInMonth;       // fijo completo, var proyectado
+    const opexVarHoy = (opex || []).filter((o) => !esFijo(o) && (o.date || '').slice(0, 10) === refToday).reduce((a, o) => a + (Number(o.amount) || 0), 0);
+    const opexVarDiario = opexVarAcum / operElapsed;
+    const opexHoy = fijoDiario + opexVarHoy;
+    const opexAcum = fijoDiario * operElapsed + opexVarAcum;
+    const opexProj = fijoDiario * operDays + opexVarDiario * operDays;
 
     // Utilidad sobre venta neta
     const utilHoy = ventaNetaHoy - compraHoy - opexHoy;
@@ -228,13 +239,13 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
 
     return {
       ventaHoy: ventaNetaHoy, ventaAcum: ventaNetaAcum, ventaProj, ventaDiaProm: promedioDiarioReal,
-      promedioHastaAyer, promedioNecesario,
+      promedioNecesario,
       compraHoy, compraAcum, compraProj, ratioCompraVenta,
       opexHoy, opexAcum, opexProj, opexPct,
       utilHoy, utilAcum, utilProj, margenHoy, margenNeto, margenProj,
-      diasAcum: diasConVenta.length || dayOfMonth,
+      diasAcum: diasConVenta.length || selDia,
     };
-  }, [sales, supplyCosts, opex, fijos, today, dayOfMonth, daysInMonth, now, META_MENSUAL, tz]);
+  }, [sales, supplyCosts, opex, fijos, today, META_MENSUAL, tz]);
 
   // Objeto unificado de KPIs (demo o real)
   const K = DEMO_MODE ? {
@@ -389,7 +400,7 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
           subtitle={`${K.promedioNecesario > 0 ? ((K.ventaDiaProm / K.promedioNecesario) * 100).toFixed(0) : 0}% del promedio esperado`}
           cols={[
             { label: 'Hoy', display: clp(K.ventaHoy), value: K.ventaHoy, target: K.promedioNecesario },
-            { label: `Acum. ${K.diasAcum} días`, display: clp(K.ventaDiaProm), value: K.ventaDiaProm, target: K.promedioNecesario },
+            { label: `Acum. ${K.diasAcum} días`, display: clp(K.ventaAcum), value: K.ventaDiaProm, target: K.promedioNecesario },
             { label: 'Proyectado', display: clp(K.ventaProj), value: K.ventaProj, target: META_MENSUAL },
           ]} markerLabel="meta" />
 
@@ -447,8 +458,8 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
             <Pencil className="w-4 h-4" />
           </button>
           <p className="text-3xl font-bold font-display text-noa-orange-dk">{UTIL_OBJETIVO}% de utilidad</p>
-          <p className="text-sm font-semibold text-noa-navy mt-1">{clp(utilidadObjetivoMonto)}</p>
-          <p className="text-xs text-gray-500 mt-1">objetivo mensual · meta {clp(META_MENSUAL)}</p>
+          <p className="text-2xl font-bold text-noa-navy mt-1">{clp((K.ventaProj || 0) * UTIL_OBJETIVO / 100)}</p>
+          <p className="text-xs text-gray-500 mt-1">{UTIL_OBJETIVO}% de la venta proyectada · meta {clp(META_MENSUAL)}</p>
         </CardContent></Card>
 
         <Card><CardContent className="pt-5 relative">
@@ -461,15 +472,13 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
         </CardContent></Card>
       </div>
 
-      {/* Panel de alertas — Compra / Óptimo / Fuga (solo en modo demo; no hay motor de alertas real) */}
-      {DEMO_MODE && (
+      {/* Panel de alertas — Compra / Óptimo / Fuga */}
       <div>
-        <p className="text-sm font-semibold text-noa-navy flex items-center gap-1.5 mb-3"><AlertTriangle className="w-4 h-4 text-noa-orange" /> Panel de alertas</p>
+        <p className="text-base font-semibold text-white flex items-center gap-1.5 mb-3"><AlertTriangle className="w-4 h-4 text-noa-orange" /> Panel de alertas</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {ALERTAS_DEMO.map((a) => <AlertCard key={a.producto} a={a} />)}
         </div>
       </div>
-      )}
 
       {editCfg && (
         <EditMetaDialog cfg={cfg} onClose={() => setEditCfg(false)} onSave={(next) => {
@@ -700,8 +709,8 @@ function KpiCard({ name, status, cols, higherIsBetter, markerLabel, subtitle, on
         <div className="grid grid-cols-3 gap-5">
           {cols.map((c, i) => (
             <div key={i}>
-              <p className="text-[10px] text-gray-500 mb-0.5">{c.label}</p>
-              <p className="text-lg font-semibold text-gray-900 font-display">{c.display}</p>
+              <p className="text-lg font-semibold text-gray-600 mb-0.5">{c.label}</p>
+              <p className="text-2xl font-bold text-gray-900 font-display">{c.display}</p>
               <KpiBar value={c.value} target={c.target} higherIsBetter={higherIsBetter} markerLabel={markerLabel} />
             </div>
           ))}

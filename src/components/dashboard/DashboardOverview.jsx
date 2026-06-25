@@ -195,22 +195,25 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
     const ventaProj = promedioDiarioReal * diasOperacionProy;
     const promedioNecesario = META_MENSUAL / Math.max(1, diasOperacionProy);
 
-    // Compras (incl IVA, todos los días calendario)
-    const compraAcum = supplyCosts.reduce((a, c) => a + (Number(c.total_cost) || 0), 0);
-    const compraHoy = supplyCosts.filter((c) => (c.date || '').slice(0, 10) === today).reduce((a, c) => a + (Number(c.total_cost) || 0), 0);
+    // Compras NETAS (sin IVA), comparables contra la venta neta — igual que Compras 11C.
+    const netoCompra = (c) => Number(c.subtotal) || (Number(c.total_cost) || 0) / 1.19;
+    const compraAcum = supplyCosts.reduce((a, c) => a + netoCompra(c), 0);
+    const compraHoy = supplyCosts.filter((c) => (c.date || '').slice(0, 10) === today).reduce((a, c) => a + netoCompra(c), 0);
     const diasConCompra = new Set(supplyCosts.map((c) => (c.date || '').slice(0, 10)).filter(Boolean)).size || 1;
     const compraProj = (compraAcum / diasConCompra) * daysInMonth;
 
-    // OPEX desde los registros operacionales reales del mes (Administración,
-    // Inversiones, Logística) + Gastos Fijos configurados (0 si no se ingresan).
-    const fijosTot = totalFijos(fijos);
-    const fijosDiario = fijosTot / daysInMonth;
-    const opexRegAcum = (opex || []).reduce((a, o) => a + (Number(o.amount) || 0), 0);
-    const opexHoyReg = (opex || []).filter((o) => (o.date || '').slice(0, 10) === today).reduce((a, o) => a + (Number(o.amount) || 0), 0);
-    const opexRegDiario = opexRegAcum / Math.max(1, dayOfMonth);
-    const opexHoy = opexHoyReg + fijosDiario;
-    const opexAcum = opexRegAcum + fijosDiario * dayOfMonth;
-    const opexProj = opexRegDiario * daysInMonth + fijosTot;
+    // OPEX: separar los costos FIJOS mensuales (RRHH, arriendo) — que no escalan
+    // con los días — del OPEX VARIABLE (operacional). El fijo se prorratea para el
+    // acumulado y se cuenta completo (sin escalar) en la proyección.
+    const esFijo = (o) => o.type === 'payroll' || o.type === 'rent';
+    const fijoMensual = (opex || []).filter(esFijo).reduce((a, o) => a + (Number(o.amount) || 0), 0) + totalFijos(fijos);
+    const fijoDiario = fijoMensual / daysInMonth;
+    const opexVarAcum = (opex || []).filter((o) => !esFijo(o)).reduce((a, o) => a + (Number(o.amount) || 0), 0);
+    const opexVarHoy = (opex || []).filter((o) => !esFijo(o) && (o.date || '').slice(0, 10) === today).reduce((a, o) => a + (Number(o.amount) || 0), 0);
+    const opexVarDiario = opexVarAcum / Math.max(1, dayOfMonth);
+    const opexHoy = opexVarHoy + fijoDiario;
+    const opexAcum = fijoDiario * dayOfMonth + opexVarAcum;          // fijo prorrateado
+    const opexProj = fijoMensual + opexVarDiario * daysInMonth;       // fijo completo, var proyectado
 
     // Utilidad sobre venta neta
     const utilHoy = ventaNetaHoy - compraHoy - opexHoy;

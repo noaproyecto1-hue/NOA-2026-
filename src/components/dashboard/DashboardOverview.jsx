@@ -13,15 +13,15 @@ import { loadOpexFijos, saveOpexFijos, totalFijos } from '@/lib/opexConfig';
 function loadDashCfg() {
   try {
     const c = JSON.parse(localStorage.getItem('noa_dash_cfg') || '{}');
-    return { utilPct: c.utilPct ?? 15, metaMensual: c.metaMensual ?? 10000000, costoDirectoBM: c.costoDirectoBM ?? 30 };
-  } catch { return { utilPct: 15, metaMensual: 10000000, costoDirectoBM: 30 }; }
+    return { utilPct: c.utilPct ?? 15, metaMensual: c.metaMensual ?? 50000000, costoDirectoBM: c.costoDirectoBM ?? 35 };
+  } catch { return { utilPct: 15, metaMensual: 50000000, costoDirectoBM: 35 }; }
 }
 
 // ── MODO PRESENTACIÓN — Dataset demo "Casa Mediterránea" (CAMBIOS_REV4) ──
 // Números fijos día 26/30. Coherencia: 61.100.000 − 19.552.000 − 16.191.500 − 17.719.000 = 7.637.500 ✓
 // NOA Score del demo = 76 · Atención (fórmula ponderada OPEX/Food/Labor/Tendencia del PDF
 // de presentación). Fuera de DEMO_MODE el score se deriva de la utilidad EBITDA (Prompt 1).
-const DEMO_MODE = true;
+const DEMO_MODE = false; // datos reales del negocio (cargados desde el store)
 const DEMO_CASA = {
   periodo: 'Junio 2026 · Día 26 de 30',
   diasAcum: 26, diasMes: 30,
@@ -110,7 +110,7 @@ async function descargarDashboardPDF(node) {
   pdf.save(`NOA-Dashboard-${todayKey()}.pdf`);
 }
 
-export default function DashboardOverview({ sales = [], supplyCosts = [], opexByType = {}, restaurantId, tz = 'America/Santiago' }) {
+export default function DashboardOverview({ sales = [], supplyCosts = [], opex = [], opexByType = {}, restaurantId, tz = 'America/Santiago' }) {
   const today = todayKey(tz);
   const now = new Date();
   const daysInMonth = DEMO_MODE ? DEMO_CASA.diasMes : new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -136,6 +136,22 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
     staleTime: 60 * 1000,
   });
 
+  // Histórico completo (todos los meses) para la tendencia de utilidad de 6 meses.
+  const { data: hist = { sales: [], costs: [], opex: [] } } = useQuery({
+    queryKey: ['overview-hist', restaurantId],
+    queryFn: async () => {
+      const q = restaurantId ? { restaurant_id: restaurantId } : {};
+      const [hs, hc, ho] = await Promise.all([
+        base44.entities.Sale.filter(q),
+        base44.entities.SupplyCost.filter(q),
+        base44.entities.OpEx.filter(q),
+      ]);
+      return { sales: hs || [], costs: hc || [], opex: ho || [] };
+    },
+    enabled: !DEMO_MODE,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const [syncing, setSyncing] = useState(false);
   async function actualizar() {
     setSyncing(true);
@@ -151,10 +167,13 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
   // ── Venta del día (Prompt 5): el valor de Fudo es BRUTO (con IVA). Neto = bruto / 1.19 ──
   const ventaCard = useMemo(() => {
     if (DEMO_MODE) return DEMO_CASA.ventaCardHoy;
-    const ventas = (fudoSync.sales || []).filter((s) => !s.is_cancelled && (s.date_time || '').slice(0, 10) === today);
+    // Venta de hoy desde los datos cargados (store). Fudo en vivo como respaldo.
+    const delDia = (arr) => (arr || []).filter((s) => !s.is_cancelled && (s.date_time || '').slice(0, 10) === today);
+    let ventas = delDia(sales); let hasFudo = false;
+    if (ventas.length === 0 && (fudoSync.sales || []).length) { ventas = delDia(fudoSync.sales); hasFudo = true; }
     const bruto = ventas.reduce((a, s) => a + (Number(s.total_amount) || 0), 0);
-    return { bruto, neto: Math.round(bruto / 1.19), count: ventas.length, hasFudo: (fudoSync.sales || []).length > 0 };
-  }, [fudoSync, today]);
+    return { bruto, neto: Math.round(bruto / 1.19), count: ventas.length, hasFudo };
+  }, [sales, fudoSync, today]);
   const ventaColor = ventaCard.bruto >= META_DIARIA ? '#1D9E75' : ventaCard.bruto >= META_DIARIA * 0.7 ? '#F59E0B' : '#DC2626';
   const ventaPct = META_DIARIA > 0 ? Math.min(100, ventaCard.bruto / META_DIARIA * 100) : 0;
 
@@ -182,15 +201,16 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
     const diasConCompra = new Set(supplyCosts.map((c) => (c.date || '').slice(0, 10)).filter(Boolean)).size || 1;
     const compraProj = (compraAcum / diasConCompra) * daysInMonth;
 
-    // OPEX desde Gastos Fijos + variables (Prompt 9 Sec 3)
+    // OPEX desde los registros operacionales reales del mes (Administración,
+    // Inversiones, Logística) + Gastos Fijos configurados (0 si no se ingresan).
     const fijosTot = totalFijos(fijos);
     const fijosDiario = fijosTot / daysInMonth;
-    const variablesByType = Object.entries(opexByType).filter(([t]) => ['marketing', 'logistics', 'office', 'other', 'variable'].includes(t));
-    const variablesTot = variablesByType.reduce((a, [, v]) => a + v, 0);
-    const variablesDiario = variablesTot / Math.max(1, dayOfMonth);
-    const opexHoy = fijosDiario + variablesDiario;
-    const opexAcum = fijosDiario * dayOfMonth + variablesTot;
-    const opexProj = fijosTot + variablesDiario * daysInMonth;
+    const opexRegAcum = (opex || []).reduce((a, o) => a + (Number(o.amount) || 0), 0);
+    const opexHoyReg = (opex || []).filter((o) => (o.date || '').slice(0, 10) === today).reduce((a, o) => a + (Number(o.amount) || 0), 0);
+    const opexRegDiario = opexRegAcum / Math.max(1, dayOfMonth);
+    const opexHoy = opexHoyReg + fijosDiario;
+    const opexAcum = opexRegAcum + fijosDiario * dayOfMonth;
+    const opexProj = opexRegDiario * daysInMonth + fijosTot;
 
     // Utilidad sobre venta neta
     const utilHoy = ventaNetaHoy - compraHoy - opexHoy;
@@ -211,7 +231,7 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
       utilHoy, utilAcum, utilProj, margenHoy, margenNeto, margenProj,
       diasAcum: diasConVenta.length || dayOfMonth,
     };
-  }, [sales, supplyCosts, opexByType, fijos, today, dayOfMonth, daysInMonth, now, META_MENSUAL, tz]);
+  }, [sales, supplyCosts, opex, fijos, today, dayOfMonth, daysInMonth, now, META_MENSUAL, tz]);
 
   // Objeto unificado de KPIs (demo o real)
   const K = DEMO_MODE ? {
@@ -251,22 +271,29 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
   // Datos de utilidad 6 meses (Prompt 6)
   const utilidad6m = useMemo(() => {
     if (DEMO_MODE) return DEMO_CASA.utilidad6m;
-    const netByMonth = {};
-    for (const s of (fudoSync.sales || [])) {
+    const ventaNetaMes = {}, foodMes = {}, opexMes = {};
+    for (const s of hist.sales) {
       if (s.is_cancelled) continue;
       const k = (s.date_time || '').slice(0, 7); if (!k) continue;
-      netByMonth[k] = (netByMonth[k] || 0) + (Number(s.total_amount) || 0) / 1.19;
+      ventaNetaMes[k] = (ventaNetaMes[k] || 0) + (Number(s.total_amount) || 0) / 1.19;
+    }
+    for (const c of hist.costs) {
+      const k = (c.date || '').slice(0, 7); if (!k) continue;
+      foodMes[k] = (foodMes[k] || 0) + (Number(c.total_cost) || 0);
+    }
+    for (const o of hist.opex) {
+      const k = (o.date || '').slice(0, 7); if (!k) continue;
+      opexMes[k] = (opexMes[k] || 0) + (Number(o.amount) || 0);
     }
     const out = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const ventaNeta = netByMonth[k] || 0;
-      out.push({ label: MESES[d.getMonth()], val: Math.round(ventaNeta * (K.margenNeto || 0) / 100) });
+      const util = (ventaNetaMes[k] || 0) - (foodMes[k] || 0) - (opexMes[k] || 0);
+      out.push({ label: MESES[d.getMonth()], val: Math.round(util) });
     }
-    if (out.length) out[out.length - 1].val = Math.round(K.utilProj || out[out.length - 1].val);
     return out;
-  }, [fudoSync, now, K.margenNeto, K.utilProj]);
+  }, [hist, now]);
 
   return (
     <div ref={rootRef} className="space-y-6 font-sans">
@@ -431,13 +458,15 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opexBy
         </CardContent></Card>
       </div>
 
-      {/* Panel de alertas — Compra / Óptimo / Fuga */}
+      {/* Panel de alertas — Compra / Óptimo / Fuga (solo en modo demo; no hay motor de alertas real) */}
+      {DEMO_MODE && (
       <div>
         <p className="text-sm font-semibold text-noa-navy flex items-center gap-1.5 mb-3"><AlertTriangle className="w-4 h-4 text-noa-orange" /> Panel de alertas</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {ALERTAS_DEMO.map((a) => <AlertCard key={a.producto} a={a} />)}
         </div>
       </div>
+      )}
 
       {editCfg && (
         <EditMetaDialog cfg={cfg} onClose={() => setEditCfg(false)} onSave={(next) => {

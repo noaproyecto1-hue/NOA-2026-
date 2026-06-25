@@ -519,6 +519,7 @@ export default function Dashboard() {
               <DashboardOverview
                 sales={sales}
                 supplyCosts={supplyCosts}
+                opex={opex}
                 opexByType={dashboardData?.costBreakdown?.opexByType || {}}
                 restaurantId={selectedRestaurant !== 'all' ? selectedRestaurant : (dashboardData?.restaurants?.[0]?.id)}
               />

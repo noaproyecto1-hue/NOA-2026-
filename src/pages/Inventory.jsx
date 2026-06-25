@@ -726,7 +726,7 @@ export default function Inventory() {
               {userRestaurants.length >= 2 && !isStaff && (
                 <Button 
                   onClick={() => setShowTransferDialog(true)}
-                  className="bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl border-0 rounded-xl transition-all duration-300"
+                  className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm rounded-xl transition-all duration-300"
                 >
                   <Truck className="w-4 h-4 mr-2" /> Traspaso
                 </Button>
@@ -742,7 +742,7 @@ export default function Inventory() {
                     setShowCountTypeSelector(true);
                   }
                 }} 
-                className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl border-0 rounded-xl transition-all duration-300"
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm rounded-xl transition-all duration-300"
               >
                 <ClipboardCheck className="w-4 h-4 mr-2" /> Conteo
               </Button>
@@ -769,21 +769,21 @@ export default function Inventory() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <Tabs defaultValue="supplies" className="space-y-6">
           <TabsList className="bg-white/80 backdrop-blur-sm shadow-lg border-0 p-1.5 rounded-2xl flex-wrap">
-            <TabsTrigger value="supplies" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="supplies" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white transition-all duration-300">
               <Carrot className="w-4 h-4" /> Insumos
             </TabsTrigger>
             {!isStaff && (
-            <TabsTrigger value="movements" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="movements" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white transition-all duration-300">
               <History className="w-4 h-4" /> <span className="hidden sm:inline">Movimientos</span>
             </TabsTrigger>
             )}
             {!isStaff && (
-            <TabsTrigger value="losses" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-rose-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="losses" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white transition-all duration-300">
               <TrendingDown className="w-4 h-4" /> <span className="hidden sm:inline">Control</span>
             </TabsTrigger>
             )}
             {!isStaff && (
-            <TabsTrigger value="suppliers" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-gray-700 data-[state=active]:to-gray-800 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="suppliers" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white transition-all duration-300">
               <Truck className="w-4 h-4" /> <span className="hidden sm:inline">Proveedores</span>
             </TabsTrigger>
             )}
@@ -796,31 +796,28 @@ export default function Inventory() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {/* 1. Valor en Stock */}
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                <Card className="bg-gradient-to-br from-blue-500 to-indigo-600 border-0 shadow-xl overflow-hidden relative group hover:shadow-2xl transition-all duration-300 h-[160px]">
-                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <CardContent className="p-5 relative h-full flex flex-col justify-between">
+                <Card className="bg-white border border-gray-100 shadow-sm rounded-2xl h-[160px]">
+                  <CardContent className="p-5 h-full flex flex-col justify-between">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-blue-100 text-sm font-medium">Valor en Stock</p>
-                        <p className="text-2xl font-bold text-white mt-1">
+                        <p className="text-sm font-medium text-gray-500">Valor en Stock</p>
+                        <p className="text-2xl font-bold font-display text-noa-navy mt-1">
                           {formatCurrency(totalStockValue, selectedCurrency, { compact: true })}
                         </p>
                       </div>
-                      <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                        <DollarSign className="w-7 h-7 text-white" />
+                      <div className="w-12 h-12 rounded-2xl bg-noa-navy/5 flex items-center justify-center">
+                        <DollarSign className="w-6 h-6 text-noa-navy" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-blue-200 text-xs">
-                      <span>💰 Inversión actual</span>
-                    </div>
+                    <p className="text-xs text-gray-400">Inversión actual</p>
                   </CardContent>
                 </Card>
               </motion.div>
 
               {/* 2. Stock Ideal (cliqueable → config modal) */}
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                <Card 
-                  className="bg-gradient-to-br from-emerald-500 to-teal-600 border-0 shadow-xl overflow-hidden relative group hover:shadow-2xl transition-all duration-300 cursor-pointer h-[160px]"
+                <Card
+                  className="bg-white border border-gray-100 shadow-sm rounded-2xl h-[160px] cursor-pointer hover:shadow-md transition-shadow"
                   onClick={() => {
                     if (selectedRestaurant === 'all') {
                       setSelectRestaurantDialog({ open: true, action: 'ideal_stock' });
@@ -829,22 +826,21 @@ export default function Inventory() {
                     }
                   }}
                 >
-                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <CardContent className="p-5 relative h-full flex flex-col justify-between">
+                  <CardContent className="p-5 h-full flex flex-col justify-between">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-emerald-100 text-sm font-medium">Stock Ideal</p>
-                        <p className="text-2xl font-bold text-white mt-1">
+                        <p className="text-sm font-medium text-gray-500">Stock Ideal</p>
+                        <p className="text-2xl font-bold font-display text-noa-navy mt-1">
                           {idealStockValue > 0 ? formatCurrency(idealStockValue, selectedCurrency, { compact: true }) : '—'}
                         </p>
                       </div>
-                      <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                        <Settings className="w-7 h-7 text-white" />
+                      <div className="w-12 h-12 rounded-2xl bg-noa-navy/5 flex items-center justify-center">
+                        <Settings className="w-6 h-6 text-noa-navy" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-emerald-200 text-xs">
-                      <Badge className="bg-white/20 text-white border-0 text-[10px] px-2 py-0">{idealStockPercent || 10}% de ventas</Badge>
-                      <span className="opacity-70">Click para configurar</span>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Badge className="bg-noa-navy/5 text-noa-navy border-0 text-[10px] px-2 py-0">{idealStockPercent || 10}% de ventas</Badge>
+                      <span className="text-gray-400">Click para configurar</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -856,25 +852,22 @@ export default function Inventory() {
                   const isOver = stockDeviation > 0;
                   const isOk = stockDeviation <= 0;
                   const noData = totalAccumulatedSales === 0;
+                  const devColor = noData ? '#6B7280' : isOk ? '#1D9E75' : '#A32D2D';
                   return (
-                    <Card className={`border-0 shadow-xl overflow-hidden relative group hover:shadow-2xl transition-all duration-300 h-[160px] ${
-                      noData ? 'bg-gradient-to-br from-gray-400 to-gray-500' :
-                      isOk ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-red-500 to-rose-600'
-                    }`}>
-                      <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <CardContent className="p-5 relative h-full flex flex-col justify-between">
+                    <Card className="bg-white border border-gray-100 shadow-sm rounded-2xl h-[160px]">
+                      <CardContent className="p-5 h-full flex flex-col justify-between">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className={`text-sm font-medium ${noData ? 'text-gray-200' : isOk ? 'text-green-100' : 'text-red-100'}`}>Desviación</p>
-                            <p className="text-2xl font-bold text-white mt-1">
+                            <p className="text-sm font-medium text-gray-500">Desviación</p>
+                            <p className="text-2xl font-bold font-display mt-1" style={{ color: devColor }}>
                               {noData ? '—' : `${isOver ? '+' : ''}${formatCurrency(stockDeviation, selectedCurrency, { compact: true })}`}
                             </p>
                           </div>
-                          <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                            {noData ? <TrendingDown className="w-7 h-7 text-white" /> : isOk ? <Sparkles className="w-7 h-7 text-white" /> : <AlertTriangle className="w-7 h-7 text-white" />}
+                          <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center" style={{ color: devColor }}>
+                            {noData ? <TrendingDown className="w-6 h-6" /> : isOk ? <Sparkles className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
                           </div>
                         </div>
-                        <div className={`flex items-center gap-1 text-xs ${noData ? 'text-gray-300' : isOk ? 'text-green-200' : 'text-red-200'}`}>
+                        <div className="flex items-center gap-1 text-xs" style={{ color: devColor }}>
                           {noData ? (
                             <span>Sin ventas registradas</span>
                           ) : isOk ? (
@@ -891,23 +884,22 @@ export default function Inventory() {
 
               {/* 4. SKUs + botón stock bajo */}
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-                <Card 
-                  className={`border-0 shadow-xl overflow-hidden relative group hover:shadow-2xl transition-all duration-300 cursor-pointer bg-gradient-to-br from-green-500 to-emerald-600 h-[160px] ${filterStatus === 'all' && filterCategory === 'all' ? 'ring-2 ring-white/50' : ''}`}
+                <Card
+                  className={`bg-white border border-gray-100 shadow-sm rounded-2xl h-[160px] cursor-pointer hover:shadow-md transition-shadow ${filterStatus === 'all' && filterCategory === 'all' ? 'ring-1 ring-noa-navy/20' : ''}`}
                   onClick={() => { setFilterStatus('all'); setFilterCategory('all'); setSupplyPage(0); }}
                 >
-                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <CardContent className="p-5 relative h-full flex flex-col justify-between">
+                  <CardContent className="p-5 h-full flex flex-col justify-between">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-green-100 text-sm font-medium">Total Insumos</p>
-                        <p className="text-3xl font-bold text-white mt-1">{filteredSupplyItems.length}</p>
+                        <p className="text-sm font-medium text-gray-500">Total Insumos</p>
+                        <p className="text-3xl font-bold font-display text-noa-navy mt-1">{filteredSupplyItems.length}</p>
                       </div>
-                      <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                        <Carrot className="w-7 h-7 text-white" />
+                      <div className="w-12 h-12 rounded-2xl bg-noa-navy/5 flex items-center justify-center">
+                        <Carrot className="w-6 h-6 text-noa-navy" />
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-green-200 text-xs">SKUs en inventario</span>
+                      <span className="text-gray-400 text-xs">SKUs</span>
                       {criticalStockSupplies.length > 0 && (
                         <button
                           onClick={(e) => {
@@ -915,16 +907,16 @@ export default function Inventory() {
                             setFilterStatus(filterStatus === 'critical' ? 'all' : 'critical');
                             setSupplyPage(0);
                           }}
-                          className={`flex items-center gap-1.5 text-xs backdrop-blur-sm px-2.5 py-1.5 rounded-lg transition-all font-semibold ${
+                          className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-all font-semibold border ${
                             filterStatus === 'critical'
-                              ? 'bg-white text-red-600 shadow-md'
-                              : 'bg-red-600/90 hover:bg-red-600 text-white'
+                              ? 'bg-red-600 text-white border-red-600'
+                              : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
                           }`}
                         >
                           <AlertTriangle className="w-3 h-3" />
                           {criticalStockSupplies.length} crítico
                           {filterStatus === 'critical' && (
-                            <span className="ml-1 bg-red-100 text-red-600 rounded-full w-4 h-4 flex items-center justify-center text-[9px]">✕</span>
+                            <span className="ml-1 bg-white/20 rounded-full w-4 h-4 flex items-center justify-center text-[9px]">✕</span>
                           )}
                         </button>
                       )}
@@ -935,22 +927,22 @@ export default function Inventory() {
                             setFilterStatus(filterStatus === 'warning' ? 'all' : 'warning');
                             setSupplyPage(0);
                           }}
-                          className={`flex items-center gap-1.5 text-xs backdrop-blur-sm px-2.5 py-1.5 rounded-lg transition-all font-semibold ${
+                          className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-all font-semibold border ${
                             filterStatus === 'warning'
-                              ? 'bg-white text-amber-600 shadow-md'
-                              : 'bg-amber-500/90 hover:bg-amber-500 text-white'
+                              ? 'bg-amber-500 text-white border-amber-500'
+                              : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'
                           }`}
                         >
                           <AlertTriangle className="w-3 h-3" />
                           {lowStockSupplies.length - criticalStockSupplies.length} bajo
                           {filterStatus === 'warning' && (
-                            <span className="ml-1 bg-amber-100 text-amber-600 rounded-full w-4 h-4 flex items-center justify-center text-[9px]">✕</span>
+                            <span className="ml-1 bg-white/20 rounded-full w-4 h-4 flex items-center justify-center text-[9px]">✕</span>
                           )}
                         </button>
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowStockExportDialog(true); }}
-                        className="flex items-center gap-1 text-xs bg-white/20 hover:bg-white/30 backdrop-blur-sm px-2 py-1.5 rounded-lg transition-all text-white font-medium"
+                        className="flex items-center gap-1 text-xs bg-gray-50 hover:bg-gray-100 border border-gray-200 px-2 py-1.5 rounded-lg transition-all text-gray-500"
                         title="Exportar lista de compras PDF"
                       >
                         <Download className="w-3 h-3" />

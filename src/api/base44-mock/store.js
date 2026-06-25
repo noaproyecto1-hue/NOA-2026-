@@ -8,12 +8,18 @@ const PREFIX = 'mock_b44_';
 // reales) pueden exceder la cuota de localStorage (~5MB). Cuando setItem falla,
 // los datos viven en memoria y se vuelven a sembrar desde el JSON en cada carga.
 const MEM = {};
+// Caché en memoria del JSON ya parseado. Sin esto, cada lectura volvía a parsear
+// hasta ~3MB de ventas desde localStorage → la UI se congelaba al navegar.
+const CACHE = {};
 
 function readAll(entity) {
   if (MEM[entity]) return MEM[entity];
+  if (CACHE[entity]) return CACHE[entity];
   try {
     const raw = localStorage.getItem(PREFIX + entity);
-    return raw ? JSON.parse(raw) : [];
+    const data = raw ? JSON.parse(raw) : [];
+    CACHE[entity] = data;
+    return data;
   } catch {
     return [];
   }
@@ -22,10 +28,12 @@ function readAll(entity) {
 function writeAll(entity, items) {
   try {
     localStorage.setItem(PREFIX + entity, JSON.stringify(items));
+    CACHE[entity] = items;      // mantener la caché al día
     delete MEM[entity];
   } catch (e) {
     // Cuota excedida → mantener en memoria y limpiar la clave persistida.
     MEM[entity] = items;
+    delete CACHE[entity];
     try { localStorage.removeItem(PREFIX + entity); } catch {}
   }
 }

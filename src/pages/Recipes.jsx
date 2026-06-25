@@ -272,20 +272,20 @@ export default function Recipes() {
         {/* Sub-tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-white/80 backdrop-blur-sm shadow-lg border-0 p-1.5 rounded-2xl flex-wrap">
-            <TabsTrigger value="carta" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="carta" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <BookOpen className="w-4 h-4" /> Carta
             </TabsTrigger>
-            <TabsTrigger value="rendimientos" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="rendimientos" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <Gauge className="w-4 h-4" /> <span className="hidden sm:inline">Rendimientos</span>
             </TabsTrigger>
-            <TabsTrigger value="recipes" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="recipes" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <ChefHat className="w-4 h-4" /> Recetas
             </TabsTrigger>
-            <TabsTrigger value="sampling" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="sampling" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <FlaskConical className="w-4 h-4" /> <span className="hidden sm:inline">Muestreos</span>
             </TabsTrigger>
 
-            <TabsTrigger value="waste" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="waste" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Merma</span>
             </TabsTrigger>
           </TabsList>

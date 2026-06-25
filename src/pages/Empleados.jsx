@@ -316,19 +316,19 @@ export default function Empleados() {
 
         <Tabs defaultValue="equipo" className="space-y-4">
           <TabsList className="bg-white/80 backdrop-blur-sm shadow-lg border-0 p-1.5 rounded-2xl flex-wrap">
-            <TabsTrigger value="equipo" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="equipo" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <Users className="w-4 h-4" /> <span className="hidden sm:inline">Equipo de trabajo</span>
             </TabsTrigger>
-            <TabsTrigger value="directorio" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="directorio" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <ListFilter className="w-4 h-4" /> <span className="hidden sm:inline">Directorio</span>
             </TabsTrigger>
-            <TabsTrigger value="propinas" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="propinas" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <Coins className="w-4 h-4" /> Propinas
             </TabsTrigger>
-            <TabsTrigger value="rendimiento" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="rendimiento" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <BarChart3 className="w-4 h-4" /> <span className="hidden sm:inline">Rendimiento</span>
             </TabsTrigger>
-            <TabsTrigger value="muestreos" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-500 data-[state=active]:to-amber-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
+            <TabsTrigger value="muestreos" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <Star className="w-4 h-4" /> <span className="hidden sm:inline">Muestreos</span>
             </TabsTrigger>
           </TabsList>

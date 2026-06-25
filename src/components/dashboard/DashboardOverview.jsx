@@ -61,18 +61,22 @@ function diasOperativos(year, monthIndex, untilDay) {
 }
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-// ── NOA Score desde utilidad EBITDA (Prompt 1) ──
-// Escala lineal: 0% util → 25 · 5% → 50 · 10% → 75 · 15%+ → 100. (5 pts por 1% de utilidad)
-function noaScoreFromUtil(utilPct) {
-  if (utilPct >= 15) return 100;
-  return Math.round(Math.max(0, 25 + 5 * utilPct) * 10) / 10;
+// ── NOA Score: índice ponderado de eficiencia operativa (0–100) ──
+// OPEX 40% · Food Cost 25% · Labor Cost 20% · Tendencia 15%.
+// Benchmarks HORECA: OPEX 25% · Food 35% · Labor 30% (sobre venta neta).
+const NOA_BENCH = { opex: 25, food: 35, labor: 30 };
+const NOA_PESO = { opex: 0.40, food: 0.25, labor: 0.20, tendencia: 0.15 };
+// Sub-score por costo: 100 si está en/bajo el benchmark; baja 6 puntos por cada punto
+// porcentual (pp) por sobre él.
+function costScore(value, bench) {
+  if (value <= bench) return 100;
+  return Math.max(0, Math.round(100 - (value - bench) * 6));
 }
-// Categorías (Prompt 1): 75-100 Favorable · 50-74 Atención · 0-49 Riesgo · negativo Crítico.
-function noaZonaFromScore(score, utilPct) {
-  if (utilPct < 0) return 'critico';
-  if (score >= 75) return 'favorable';
-  if (score >= 50) return 'atencion';
-  return 'riesgo';
+// Rangos (imagen): 85–100 Favorable · 65–84 Atención · 0–64 Crítico.
+function noaZonaFromScore(score) {
+  if (score >= 85) return 'favorable';
+  if (score >= 65) return 'atencion';
+  return 'critico';
 }
 
 // Estados semáforo (Prompt 3: Favorable / Atención / Crítico; + Riesgo para el score)
@@ -231,6 +235,12 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
     const utilAcum = ventaNetaAcum - compraAcum - opexAcum;
     const utilProj = ventaProj - compraProj - opexProj;
 
+    // Para el NOA Score: separar Labor (RRHH) del resto del OPEX (arriendo + operacional + config).
+    const laborAcum = (opex || []).filter((o) => o.type === 'payroll').reduce((a, o) => a + (Number(o.amount) || 0), 0);
+    const opexScoreAcum = (opex || []).filter((o) => o.type !== 'payroll').reduce((a, o) => a + (Number(o.amount) || 0), 0) + totalFijos(fijos);
+    const laborPct = ventaNetaAcum > 0 ? laborAcum / ventaNetaAcum * 100 : 0;
+    const opexScorePct = ventaNetaAcum > 0 ? opexScoreAcum / ventaNetaAcum * 100 : 0;
+
     const ratioCompraVenta = ventaNetaAcum > 0 ? compraAcum / ventaNetaAcum * 100 : 0;
     const opexPct = ventaNetaAcum > 0 ? opexAcum / ventaNetaAcum * 100 : 0;
     const margenNeto = ventaNetaAcum > 0 ? utilAcum / ventaNetaAcum * 100 : 0;
@@ -242,6 +252,7 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
       promedioNecesario,
       compraHoy, compraAcum, compraProj, ratioCompraVenta,
       opexHoy, opexAcum, opexProj, opexPct,
+      laborPct, opexScorePct,
       utilHoy, utilAcum, utilProj, margenHoy, margenNeto, margenProj,
       diasAcum: diasConVenta.length || selDia,
     };
@@ -258,14 +269,27 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
     margenHoy: DEMO_CASA.margenHoy, margenNeto: DEMO_CASA.margenNeto, margenProj: DEMO_CASA.margenProj,
   } : M;
 
-  // NOA Score: en demo se fija a 76/Atención (CAMBIOS_REV4); fuera de demo deriva de la utilidad (Prompt 1).
+  // NOA Score ponderado: OPEX 40% · Food 25% · Labor 20% · Tendencia 15% (imagen).
   const noa = useMemo(() => {
     const utilPct = K.margenNeto || 0;
     if (DEMO_MODE) return { score: DEMO_CASA.noaScore, zona: DEMO_CASA.noaZona, utilPct };
-    const score = noaScoreFromUtil(utilPct);
-    const zona = noaZonaFromScore(score, utilPct);
-    return { score, zona, utilPct };
-  }, [K.margenNeto]);
+    const sOpex = costScore(K.opexScorePct || 0, NOA_BENCH.opex);
+    const sFood = costScore(K.ratioCompraVenta || 0, COSTO_BM || NOA_BENCH.food);
+    const sLabor = costScore(K.laborPct || 0, NOA_BENCH.labor);
+    // Tendencia (15%): dirección de la utilidad neta del mes vs el mes anterior.
+    const utilMes = {};
+    for (const s of hist.sales) { if (s.is_cancelled) continue; const k = (s.date_time || '').slice(0, 7); if (k) utilMes[k] = (utilMes[k] || 0) + (Number(s.total_amount) || 0) / 1.19; }
+    for (const c of hist.costs) { const k = (c.date || '').slice(0, 7); if (k) utilMes[k] = (utilMes[k] || 0) - (Number(c.total_cost) || 0) / 1.19; }
+    for (const o of hist.opex) { const k = (o.date || '').slice(0, 7); if (k) utilMes[k] = (utilMes[k] || 0) - (Number(o.amount) || 0); }
+    const meses = Object.keys(utilMes).sort();
+    let sTend = 70;
+    if (meses.length >= 2) {
+      const last = utilMes[meses[meses.length - 1]], prev = utilMes[meses[meses.length - 2]];
+      sTend = prev !== 0 ? Math.max(0, Math.min(100, Math.round(60 + ((last - prev) / Math.abs(prev)) * 60))) : (last >= 0 ? 75 : 40);
+    }
+    const score = Math.round(sOpex * NOA_PESO.opex + sFood * NOA_PESO.food + sLabor * NOA_PESO.labor + sTend * NOA_PESO.tendencia);
+    return { score, zona: noaZonaFromScore(score), utilPct, parts: { sOpex, sFood, sLabor, sTend } };
+  }, [K.opexScorePct, K.ratioCompraVenta, K.laborPct, K.margenNeto, hist, COSTO_BM]);
   const noaSt = STATUS_STYLE[noa.zona] || STATUS_STYLE.atencion;
 
   // Párrafo dinámico del banner (Prompt 2)

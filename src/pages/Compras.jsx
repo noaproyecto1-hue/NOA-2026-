@@ -140,9 +140,9 @@ const FAM_FABRICACION = [
   'Cafetería y chocolates', 'Productos impulsivos', 'Artículos y merchandising',
   'Packaging y comisiones', 'Otros alimentos',
 ];
-// Recuadro 2: Compras Operacionales
+// Recuadro 2: Compras Operacionales (RRHH y Arriendo NO van aquí; son del P&L)
 const FAM_OPERACIONAL = [
-  'Operaciones', 'Administración', 'Marketing', 'Higiene e Inocuidad', 'Otras Compras Operacionales',
+  'Administración', 'Logística', 'Inversiones', 'Higiene e Inocuidad', 'Otras Compras Operacionales',
 ];
 const CATCH_FOOD = 'Otros alimentos';
 const CATCH_OPS = 'Otras Compras Operacionales';
@@ -165,13 +165,14 @@ function classifyFood(cat) {
   if (/(packaging|empaque|envase|comisi|delivery)/.test(c)) return 'Packaging y comisiones';
   return CATCH_FOOD;
 }
-// Clasificación automática de un gasto operacional → una de las 5 sub-familias.
+// Clasificación de un gasto operacional → Administración / Logística / Inversiones /
+// Higiene e Inocuidad. El resto (marketing, servicios básicos, packaging) → Otras.
 function classifyOps(o) {
-  const s = `${o.cost_center_name || ''} ${o.type || ''} ${o.description || ''}`.toLowerCase();
+  const s = `${o.cost_center_name || ''} ${o.type || ''} ${o.description || ''} ${o.subcategoria || ''}`.toLowerCase();
   if (/(higiene|inocuidad|limpieza|sanit|aseo)/.test(s)) return 'Higiene e Inocuidad';
-  if (/(marketing|publicidad|\bads\b|redes|promoci)/.test(s)) return 'Marketing';
-  if (/(admin)/.test(s)) return 'Administración';
-  if (/(operac|combustible|log[íi]stica|oficina|insumo|util|mantenc|mantenim)/.test(s)) return 'Operaciones';
+  if (/(log[íi]stica|combustible|flete|transport)/.test(s)) return 'Logística';
+  if (/(inversi|equipamient)/.test(s)) return 'Inversiones';
+  if (/(admin|sofware|software|oficina|contab|ebill|ruka|telef|comunicac)/.test(s)) return 'Administración';
   return CATCH_OPS;
 }
 function loadFamExtra(key) { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } }
@@ -198,7 +199,8 @@ function PorFamilia({ rid }) {
     queryKey: ['compras-familia-opex', rid],
     queryFn: async () => {
       const all = rid ? await base44.entities.OpEx.filter({ restaurant_id: rid }) : await base44.entities.OpEx.list();
-      return all || [];
+      // RRHH y Arriendo no son "compras operacionales": se muestran solo en el P&L.
+      return (all || []).filter((o) => o.type !== 'payroll' && o.type !== 'rent');
     },
     enabled: true, staleTime: 2 * 60 * 1000,
   });
@@ -450,7 +452,7 @@ function ItemComprasInline({ kind, name, rid }) {
     queryFn: async () => {
       if (kind === 'opex') {
         const all = rid ? await base44.entities.OpEx.filter({ restaurant_id: rid }) : await base44.entities.OpEx.list();
-        return all || [];
+        return (all || []).filter((o) => o.type !== 'payroll' && o.type !== 'rent');
       }
       const all = rid ? await base44.entities.SupplyCost.filter({ restaurant_id: rid }) : await base44.entities.SupplyCost.list();
       return all || [];

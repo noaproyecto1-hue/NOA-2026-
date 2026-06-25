@@ -4,7 +4,13 @@
 
 const PREFIX = 'mock_b44_';
 
+// Fallback en memoria: las entidades grandes (p. ej. Sale con miles de tickets
+// reales) pueden exceder la cuota de localStorage (~5MB). Cuando setItem falla,
+// los datos viven en memoria y se vuelven a sembrar desde el JSON en cada carga.
+const MEM = {};
+
 function readAll(entity) {
+  if (MEM[entity]) return MEM[entity];
   try {
     const raw = localStorage.getItem(PREFIX + entity);
     return raw ? JSON.parse(raw) : [];
@@ -14,7 +20,14 @@ function readAll(entity) {
 }
 
 function writeAll(entity, items) {
-  localStorage.setItem(PREFIX + entity, JSON.stringify(items));
+  try {
+    localStorage.setItem(PREFIX + entity, JSON.stringify(items));
+    delete MEM[entity];
+  } catch (e) {
+    // Cuota excedida → mantener en memoria y limpiar la clave persistida.
+    MEM[entity] = items;
+    try { localStorage.removeItem(PREFIX + entity); } catch {}
+  }
 }
 
 function genId() {
@@ -87,6 +100,6 @@ export const store = {
     }
   },
   has(entity) {
-    return localStorage.getItem(PREFIX + entity) !== null;
+    return (entity in MEM) || localStorage.getItem(PREFIX + entity) !== null;
   },
 };

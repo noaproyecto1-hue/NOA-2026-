@@ -37,7 +37,7 @@ const CustomTooltip = ({ active, payload, currency }) => {
   const items = [
     { label: 'Costo de Venta', value: data?.foodCost, percent: data?.foodCostPercent, color: '#f59e0b' },
     { label: 'Costo Personal', value: data?.payroll, percent: data?.payrollPercent, color: '#6E81A1' },
-    { label: 'OPEX', value: data?.opexAmount, percent: data?.opexPercent, color: '#22d3ee' },
+    { label: 'OPEX', value: data?.opexAmount, percent: data?.opexPercent, color: '#6E81A1' },
   ];
   return (
     <div className="bg-slate-950/95 backdrop-blur-xl p-4 rounded-2xl shadow-2xl border border-white/[0.08] min-w-[260px]">
@@ -228,7 +228,7 @@ export default function CostTrendChart({ sales = [], supplyCosts = [], opex = []
       dataKeyPercent: 'payrollPercent', dataKeyAmount: 'payroll',
     },
     {
-      id: 'opex', label: 'OPEX', icon: Settings, color: '#22d3ee', stroke: '#06b6d4',
+      id: 'opex', label: 'OPEX', icon: Settings, color: '#6E81A1', stroke: '#47587A',
       value: viewMode === 'percent' ? `${latestData.opexPercent?.toFixed(1) || 0}%` : formatCurrency(latestData.opexAmount || 0, currency, { compact: true }),
       subValue: viewMode === 'percent' ? formatCurrency(latestData.opexAmount || 0, currency, { compact: true }) : `${latestData.opexPercent?.toFixed(1) || 0}%`,
       trend: opexTrend, bgGlow: 'from-cyan-500/10 to-cyan-600/5', borderGlow: 'border-cyan-500/20', activeRing: 'ring-cyan-400/30',
@@ -375,7 +375,7 @@ export default function CostTrendChart({ sales = [], supplyCosts = [], opex = []
                   <Tooltip content={<CustomTooltip currency={currency} />} cursor={{ fill: t.cursorFill }} />
                   {isMetricActive('foodCost') && <Bar dataKey={viewMode === 'percent' ? 'foodCostPercent' : 'foodCost'} fill="#f59e0b" shape={<RoundedBar />} />}
                   {isMetricActive('payroll') && <Bar dataKey={viewMode === 'percent' ? 'payrollPercent' : 'payroll'} fill="#6E81A1" shape={<RoundedBar />} />}
-                  {isMetricActive('opex') && <Bar dataKey={viewMode === 'percent' ? 'opexPercent' : 'opexAmount'} fill="#22d3ee" shape={<RoundedBar />} />}
+                  {isMetricActive('opex') && <Bar dataKey={viewMode === 'percent' ? 'opexPercent' : 'opexAmount'} fill="#6E81A1" shape={<RoundedBar />} />}
                   {activeMetric !== 'all' && (
                     <Line type="monotone" dataKey={viewMode === 'percent' ? metrics.find(m => m.id === activeMetric)?.dataKeyPercent : metrics.find(m => m.id === activeMetric)?.dataKeyAmount}
                       stroke={t.trendLineStroke} strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
@@ -395,9 +395,9 @@ export default function CostTrendChart({ sales = [], supplyCosts = [], opex = []
                       <stop offset="100%" stopColor="#6E81A1" stopOpacity={t.gradOpacity[2]} />
                     </linearGradient>
                     <linearGradient id="gOpex" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#22d3ee" stopOpacity={t.gradOpacity[0]} />
-                      <stop offset="50%" stopColor="#22d3ee" stopOpacity={t.gradOpacity[1]} />
-                      <stop offset="100%" stopColor="#22d3ee" stopOpacity={t.gradOpacity[2]} />
+                      <stop offset="0%" stopColor="#6E81A1" stopOpacity={t.gradOpacity[0]} />
+                      <stop offset="50%" stopColor="#6E81A1" stopOpacity={t.gradOpacity[1]} />
+                      <stop offset="100%" stopColor="#6E81A1" stopOpacity={t.gradOpacity[2]} />
                     </linearGradient>
                     <filter id="glA"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
                     <filter id="glV"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
@@ -426,9 +426,9 @@ export default function CostTrendChart({ sales = [], supplyCosts = [], opex = []
                   )}
                   {isMetricActive('opex') && (
                     <Area type="monotone" dataKey={viewMode === 'percent' ? 'opexPercent' : 'opexAmount'}
-                      stroke="#22d3ee" strokeWidth={2.5} fill="url(#gOpex)"
-                      dot={{ fill: t.dotFill, stroke: '#22d3ee', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 7, fill: '#22d3ee', stroke: t.dotFill, strokeWidth: 3, filter: isDark ? 'url(#glC)' : undefined }}
+                      stroke="#6E81A1" strokeWidth={2.5} fill="url(#gOpex)"
+                      dot={{ fill: t.dotFill, stroke: '#6E81A1', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 7, fill: '#6E81A1', stroke: t.dotFill, strokeWidth: 3, filter: isDark ? 'url(#glC)' : undefined }}
                     />
                   )}
                 </AreaChart>

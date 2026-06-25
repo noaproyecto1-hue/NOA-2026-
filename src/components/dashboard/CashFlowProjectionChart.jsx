@@ -269,8 +269,8 @@ export default function CashFlowProjectionChart({
               <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorReal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0891b2" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#0891b2" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#324367" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#324367" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorProyectado" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#47587A" stopOpacity={0.3}/>
@@ -364,12 +364,12 @@ export default function CashFlowProjectionChart({
                   type="monotone"
                   dataKey="flujoReal"
                   name="Real"
-                  stroke="#0891b2"
+                  stroke="#324367"
                   strokeWidth={3}
                   fill="url(#colorReal)"
                   connectNulls={false}
-                  dot={{ fill: '#0891b2', strokeWidth: 0, r: 3 }}
-                  activeDot={{ r: 6, fill: '#0891b2', stroke: '#fff', strokeWidth: 2 }}
+                  dot={{ fill: '#324367', strokeWidth: 0, r: 3 }}
+                  activeDot={{ r: 6, fill: '#324367', stroke: '#fff', strokeWidth: 2 }}
                 />
 
                 <Legend 

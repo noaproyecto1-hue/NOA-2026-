@@ -79,6 +79,15 @@ module.exports = {
   			'noa-lg':     '0 12px 32px rgba(0,0,0,.12)',
   			'noa-xl':     '0 24px 48px rgba(0,0,0,.14)',
   			'noa-orange': '0 4px 20px rgba(245,158,11,.35)',
+  			// ── Brand Book regla 6: sombras SUTILES, nunca glow/neón. Se capan las
+  			// utilidades por defecto de Tailwind para que ningún componente del frontend
+  			// use sombras pesadas (shadow-xl/2xl) ni glows. ──
+  			DEFAULT: '0 1px 4px rgba(0,0,0,.08)',
+  			sm:      '0 1px 2px rgba(0,0,0,.05)',
+  			md:      '0 1px 4px rgba(0,0,0,.08)',
+  			lg:      '0 2px 8px rgba(0,0,0,.08)',
+  			xl:      '0 4px 12px rgba(0,0,0,.10)',
+  			'2xl':   '0 4px 16px rgba(0,0,0,.10)',
   		},
   		transitionTimingFunction: {
   			'noa': 'cubic-bezier(.22,.68,0,1.2)',
@@ -90,11 +99,16 @@ module.exports = {
   		},
   		colors: {
   			// ─── Remap de familias fuera de marca → navy (Brand Book) ───
+  			// Navy dominante: las familias decorativas que no están en la paleta NOA
+  			// se llevan a navy. Se conserva el semáforo (green/red/amber, info azul/sky).
   			purple:  NAVY_SCALE,
   			violet:  NAVY_SCALE,
   			indigo:  NAVY_SCALE,
   			fuchsia: NAVY_SCALE,
   			pink:    NAVY_SCALE,
+  			teal:    NAVY_SCALE,
+  			cyan:    NAVY_SCALE,
+  			lime:    NAVY_SCALE,
 
   			// ─── NOA palette ───
   			'noa-orange': {

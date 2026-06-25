@@ -5,7 +5,7 @@ import { PieChart as PieIcon } from "lucide-react";
 
 const COLORS = [
   '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#47587A', 
-  '#47587A', '#06b6d4', '#84cc16', '#f97316', '#47587A'
+  '#47587A', '#47587A', '#47587A', '#f97316', '#47587A'
 ];
 
 const opexLabels = {

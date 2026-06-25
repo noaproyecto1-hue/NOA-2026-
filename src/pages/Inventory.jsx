@@ -1150,9 +1150,6 @@ export default function Inventory() {
                             )}
                             <td className="py-4 px-5">
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
-                                  <Carrot className="w-5 h-5 text-green-600" />
-                                </div>
                                 <div>
                                   <span className="font-semibold text-gray-900">{item.name}</span>
                                   {item.supplier && <p className="text-xs text-gray-400">{item.supplier}</p>}

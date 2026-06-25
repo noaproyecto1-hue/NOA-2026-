@@ -42,8 +42,8 @@ export default function Dashboard() {
   }); // overview, costs, incomeStatement, cashflow, alerts, vsTargets
   // El dateRange se inicializa con la fecha actual, pero se actualiza cuando el user carga
   const [dateRange, setDateRange] = useState(() => ({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date())
+    from: startOfMonth(subMonths(new Date(), 1)),
+    to: endOfMonth(subMonths(new Date(), 1))
   }));
   const [annualYear, setAnnualYear] = useState(new Date().getFullYear());
 
@@ -64,8 +64,8 @@ export default function Dashboard() {
     if (user) {
       const now = getCurrentDateInUserTz(user);
       setDateRange({
-        from: startOfMonth(now),
-        to: endOfMonth(now)
+        from: startOfMonth(subMonths(now, 1)),
+        to: endOfMonth(subMonths(now, 1))
       });
     }
   }, [user?.timezone]);

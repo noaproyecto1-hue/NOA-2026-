@@ -3,6 +3,26 @@
 // NOA · Design System v1.0 · 2026 — tokens expuestos como utilidades Tailwind.
 // Para el bundle completo de variables CSS y clases componentes, ver src/index.css.
 //
+// ── Brand Book (CAMBIOS_REV4): el navy domina y el púrpura/rosa están PROHIBIDOS. ──
+// Las familias decorativas fuera de marca (purple, violet, indigo, fuchsia, pink) se
+// remapean globalmente a esta escala navy, conservando la luminosidad de cada tono
+// (50 = claro … 950 = navy oscuro) para no romper contraste ni layouts. Así cualquier
+// `purple-600`, `from-indigo-900`, `bg-pink-50`, etc. de todo el frontend pasa a navy
+// sin tocar los componentes. Verde/rojo/ámbar/azul se conservan: son el semáforo NOA.
+const NAVY_SCALE = {
+  50:  '#F3F5F9',
+  100: '#E4E9F1',
+  200: '#C9D2E1',
+  300: '#A3B1C9',
+  400: '#6E81A1',
+  500: '#47587A',
+  600: '#324367',
+  700: '#233152',
+  800: '#16223F',
+  900: '#0C1B33',
+  950: '#070F1F',
+};
+
 module.exports = {
     darkMode: ["class"],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
@@ -69,6 +89,13 @@ module.exports = {
   			'noa-slow': '350ms',
   		},
   		colors: {
+  			// ─── Remap de familias fuera de marca → navy (Brand Book) ───
+  			purple:  NAVY_SCALE,
+  			violet:  NAVY_SCALE,
+  			indigo:  NAVY_SCALE,
+  			fuchsia: NAVY_SCALE,
+  			pink:    NAVY_SCALE,
+
   			// ─── NOA palette ───
   			'noa-orange': {
   				DEFAULT: '#F59E0B',

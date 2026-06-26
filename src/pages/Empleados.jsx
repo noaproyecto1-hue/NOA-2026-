@@ -521,8 +521,15 @@ function RRHHSummary({ restaurantId }) {
     enabled: true, staleTime: 2 * 60 * 1000,
   });
 
-  const now = new Date();
-  const inMonth = (d) => { const x = new Date(d); return x.getFullYear() === now.getFullYear() && x.getMonth() === now.getMonth(); };
+  // Mes de referencia = último mes CON datos. Los registros llegan hasta mayo;
+  // el mes calendario real puede no tener datos y dejaría todo en $0.
+  const refNow = useMemo(() => {
+    const ts = [];
+    for (const o of opex) { const t = new Date(o.date).getTime(); if (!Number.isNaN(t)) ts.push(t); }
+    for (const s of sales) { const t = new Date(s.date_time).getTime(); if (!Number.isNaN(t)) ts.push(t); }
+    return ts.length ? new Date(Math.max(...ts)) : new Date();
+  }, [opex, sales]);
+  const inMonth = (d) => { const x = new Date(d); return x.getFullYear() === refNow.getFullYear() && x.getMonth() === refNow.getMonth(); };
 
   const totalRRHH = opex.filter((o) => o.type === 'payroll' || (o.cost_center_name || '').toUpperCase().includes('RRHH') || (o.cost_center_name || '').toUpperCase().includes('PAYROLL')).filter((o) => inMonth(o.date)).reduce((s, o) => s + (Number(o.amount) || 0), 0);
   const ventaMes = sales.filter((s) => inMonth(s.date_time)).reduce((s, x) => s + (Number(x.total_amount) || 0), 0);

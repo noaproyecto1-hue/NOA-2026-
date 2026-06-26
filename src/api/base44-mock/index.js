@@ -119,17 +119,13 @@ const functions = {
 // Helper: llama al proxy LLM con las creds de Settings.
 async function callLLM({ system, messages, max_tokens } = {}) {
   const cfg = loadIntegrations().ai;
-  if (!cfg.apiKey) {
-    return {
-      text: '⚠️ Sin API key de IA configurada. Ve a Configuración → Integraciones para agregar tu key (Anthropic, OpenAI, Gemini o DeepSeek).',
-      _notConfigured: true,
-    };
-  }
+  // Se llama siempre al servidor: si no hay key local, el servidor usa la variable
+  // de entorno del proveedor (p. ej. DEEPSEEK_API_KEY en Vercel).
   const res = await fetch('/__llm/invoke', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      provider: cfg.provider,
+      provider: cfg.provider || 'deepseek',
       apiKey: cfg.apiKey,
       model: cfg.model,
       system,
@@ -137,8 +133,16 @@ async function callLLM({ system, messages, max_tokens } = {}) {
       max_tokens,
     }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `LLM ${res.status}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (/apikey/i.test(data.error || '')) {
+      return {
+        text: '⚠️ Sin API key de IA configurada. Agrégala en Configuración → Integraciones, o como variable de entorno (DEEPSEEK_API_KEY) en Vercel.',
+        _notConfigured: true,
+      };
+    }
+    throw new Error(data.error || `LLM ${res.status}`);
+  }
   return data;
 }
 

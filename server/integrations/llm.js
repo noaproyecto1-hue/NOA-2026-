@@ -18,15 +18,20 @@ const DEFAULT_MODELS = {
 
 export async function invokeLLM({ provider, apiKey, model, messages, system, max_tokens }) {
   if (!provider) throw new Error('provider requerido');
-  if (!apiKey) throw new Error('apiKey requerido (configúralo en Settings → Integraciones)');
+  // Respaldo: si el request no trae key, usar la variable de entorno del proveedor
+  // (p. ej. DEEPSEEK_API_KEY, ANTHROPIC_API_KEY) configurada en Vercel — nunca en el repo.
+  const envKey = (typeof process !== 'undefined' && process.env)
+    ? process.env[`${String(provider).toUpperCase()}_API_KEY`] : '';
+  const key = apiKey || envKey;
+  if (!key) throw new Error('apiKey requerido (configúralo en Settings → Integraciones o como variable de entorno)');
   const _model = model || DEFAULT_MODELS[provider];
   const _max = max_tokens || DEFAULT_MAX_TOKENS;
   const msgs = Array.isArray(messages) ? messages : [{ role: 'user', content: String(messages || '') }];
 
-  if (provider === 'anthropic') return callAnthropic({ apiKey, model: _model, messages: msgs, system, max_tokens: _max });
-  if (provider === 'openai') return callOpenAI({ apiKey, model: _model, messages: msgs, system, max_tokens: _max });
-  if (provider === 'gemini') return callGemini({ apiKey, model: _model, messages: msgs, system, max_tokens: _max });
-  if (provider === 'deepseek') return callDeepSeek({ apiKey, model: _model, messages: msgs, system, max_tokens: _max });
+  if (provider === 'anthropic') return callAnthropic({ apiKey: key, model: _model, messages: msgs, system, max_tokens: _max });
+  if (provider === 'openai') return callOpenAI({ apiKey: key, model: _model, messages: msgs, system, max_tokens: _max });
+  if (provider === 'gemini') return callGemini({ apiKey: key, model: _model, messages: msgs, system, max_tokens: _max });
+  if (provider === 'deepseek') return callDeepSeek({ apiKey: key, model: _model, messages: msgs, system, max_tokens: _max });
   throw new Error(`Proveedor desconocido: ${provider}`);
 }
 

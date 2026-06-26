@@ -53,7 +53,7 @@ export const DEFAULT_AGENT_PROMPT = `Eres NOA, el Gerente General virtual del re
 
 const DEFAULTS = {
   ai: {
-    provider: 'anthropic',
+    provider: 'deepseek',
     apiKey: '',
     model: '',
   },

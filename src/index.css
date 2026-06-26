@@ -151,6 +151,11 @@
     @apply border-border outline-ring/50;
   }
 
+  /* Sobre fondo blanco el texto es oscuro por defecto. Evita el "blanco sobre
+     blanco" cuando la página usa texto claro por el tema navy (tablas, paneles,
+     diálogos que no son <Card>). Las utilidades text-* explícitas lo sobreescriben. */
+  .bg-white { color: #1f2937; }
+
   html {
     font-size: var(--noa-text-md);
   }

@@ -314,8 +314,9 @@ function PorFamilia({ rid }) {
   );
 }
 
-// Celda mensual: monto neto + % sobre venta neta con tendencia y color benchmark (Prompt 11C)
-function CeldaMes({ amount, pct, prevPct, isCurrent, small }) {
+// Celda mensual: monto neto + % sobre venta neta con tendencia y color benchmark (Prompt 11C).
+// `fict` = valor estimado (promedio) para meses sin compras → se muestra atenuado con "~".
+function CeldaMes({ amount, pct, prevPct, isCurrent, small, fict }) {
   let color = 'text-green-600';
   if (isCurrent) color = 'text-noa-info';
   else if (prevPct != null) { const d = pct - prevPct; color = d <= 0 ? 'text-green-600' : d <= 2 ? 'text-orange-600' : 'text-red-600'; }
@@ -323,11 +324,13 @@ function CeldaMes({ amount, pct, prevPct, isCurrent, small }) {
   const up = pct > (prevPct ?? 0);
   return (
     <TableCell className="text-right">
-      <div className={`${small ? 'text-[11px] text-gray-700' : 'text-xs font-semibold text-gray-900'}`}>{amount ? clpK(amount) : '—'}</div>
+      <div className={`${fict ? 'italic text-gray-400' : (small ? 'text-[11px] text-gray-700' : 'text-xs font-semibold text-gray-900')}`} title={fict ? 'Estimado (promedio): mes sin compras registradas' : undefined}>
+        {amount ? `${fict ? '~' : ''}${clpK(amount)}` : '—'}
+      </div>
       {pct > 0 && (
-        <div className={`text-[11px] inline-flex items-center gap-0.5 ${color}`}>
+        <div className={`text-[11px] inline-flex items-center gap-0.5 ${fict ? 'text-gray-300' : color}`}>
           {pct.toFixed(1)}%
-          {showArrow && (up ? <ArrowUp className="w-3 h-3 text-red-600" /> : <ArrowDown className="w-3 h-3 text-green-600" />)}
+          {!fict && showArrow && (up ? <ArrowUp className="w-3 h-3 text-red-600" /> : <ArrowDown className="w-3 h-3 text-green-600" />)}
         </div>
       )}
     </TableCell>
@@ -355,6 +358,14 @@ function FamiliaRecuadro({ titulo, subtitulo, familias, monthsCols, salesNetByMo
 
   // pct por familia/mes sobre venta neta
   const pctOf = (byMonth, m) => (salesNetByMonth[m] ? (byMonth[m] || 0) / salesNetByMonth[m] * 100 : 0);
+  // Rellena los meses sin compras con el PROMEDIO de los meses con data (dato estimado).
+  const fillAvg = (byMonth) => {
+    const present = monthsCols.map((m) => byMonth[m]).filter((v) => v > 0);
+    const avg = present.length ? Math.round(present.reduce((a, b) => a + b, 0) / present.length) : 0;
+    const out = {};
+    for (const m of monthsCols) out[m] = (byMonth[m] || 0) > 0 ? byMonth[m] : avg;
+    return out;
+  };
 
   return (
     <div className="space-y-2">
@@ -415,10 +426,15 @@ function FamiliaRecuadro({ titulo, subtitulo, familias, monthsCols, salesNetByMo
                               {it.name}
                             </span>
                           </TableCell>
-                          {monthsCols.map((m, idx) => (
-                            <CeldaMes key={m} small amount={it.byMonth[m] || 0} pct={pctOf(it.byMonth, m)}
-                              prevPct={idx > 0 ? pctOf(it.byMonth, monthsCols[idx - 1]) : null} isCurrent={m === cur} />
-                          ))}
+                          {(() => {
+                            const filled = fillAvg(it.byMonth);
+                            return monthsCols.map((m, idx) => (
+                              <CeldaMes key={m} small amount={filled[m]}
+                                fict={!((it.byMonth[m] || 0) > 0) && filled[m] > 0}
+                                pct={pctOf(filled, m)}
+                                prevPct={idx > 0 ? pctOf(filled, monthsCols[idx - 1]) : null} isCurrent={m === cur} />
+                            ));
+                          })()}
                         </TableRow>
                         {itemOpen && (
                           <TableRow className="bg-white">

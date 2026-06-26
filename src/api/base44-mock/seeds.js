@@ -9,8 +9,8 @@ export const DEMO_USER = {
   username: 'cesar',
   email: 'cesar@local',
   password: '1234',
-  full_name: 'Cesar (Administrador)',
-  display_name: 'Cesar',
+  full_name: 'Felipe (Administrador)',
+  display_name: 'Felipe',
   profile_photo: '',
   role: 'user',     // no 'admin' — admin redirige siempre al SuperadminDashboard
   app_role: 'manager',
@@ -69,8 +69,13 @@ export async function seedIfEmpty() {
     const cesar = users.find((u) => u.id === DEMO_USER.id);
     if (!cesar) {
       await store.create('User', DEMO_USER);
-    } else if (!cesar.password) {
-      await store.update('User', cesar.id, { password: DEMO_USER.password, username: DEMO_USER.username });
+    } else {
+      // Repara password si falta y fuerza el nombre actual (Felipe) sobre
+      // usuarios sembrados antes con el nombre anterior.
+      const patch = {};
+      if (!cesar.password) { patch.password = DEMO_USER.password; patch.username = DEMO_USER.username; }
+      if (cesar.display_name !== DEMO_USER.display_name) { patch.display_name = DEMO_USER.display_name; patch.full_name = DEMO_USER.full_name; }
+      if (Object.keys(patch).length) await store.update('User', cesar.id, patch);
     }
   }
   if (!store.has('Restaurant')) store.bulkCreate('Restaurant', [DEMO_RESTAURANT]);

@@ -23,7 +23,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import CostCenterBreakdown from '@/components/dashboard/CostCenterBreakdown';
 import IncomeStatementTab from '@/components/dashboard/IncomeStatementTab';
 import CostTrendChart from '@/components/dashboard/CostTrendChart';
-import AlertsViewTab from '@/components/dashboard/AlertsViewTab';
+import AlertsFullView from '@/components/dashboard/AlertsFullView';
 import RestaurantPickerOnEntry from '@/components/dialogs/RestaurantPickerOnEntry';
 
 
@@ -610,20 +610,7 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
-              <AlertsViewTab
-                alerts={alerts}
-                restaurantId={alertRestaurantId}
-                restaurantConfig={{
-                  alert_thresholds: selectedRestaurantData?.alert_thresholds,
-                  financial_health: selectedRestaurantData?.financial_health
-                }}
-                currentMetrics={currentMetrics}
-                previousMetrics={previousMetrics}
-                currency={selectedCurrency}
-                selectedRestaurant={selectedRestaurant}
-                getRestaurantName={getRestaurantName}
-                restaurants={accessibleRestaurants}
-              />
+              <AlertsFullView />
             </motion.div>
           )}
 

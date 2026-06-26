@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AreaChart, Area, XAxis, YAxis, ReferenceLine, ResponsiveContainer, Tooltip } from 'recharts';
 import { AlertTriangle, ChevronRight, RefreshCw, Loader2, Pencil, Download } from 'lucide-react';
 import { loadOpexFijos, saveOpexFijos, totalFijos } from '@/lib/opexConfig';
+import { AlertCard, ALERTAS, sortBySeverity } from '@/components/dashboard/alerts/alertsShared';
 
 // Config de metas (editable). Todo se rige por la utilidad objetivo (default 15%).
 function loadDashCfg() {
@@ -504,11 +505,11 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
         </CardContent></Card>
       </div>
 
-      {/* Panel de alertas — Compra / Óptimo / Fuga */}
+      {/* Panel de alertas — Compra / Óptimo / Fuga (resumen: top 4 por criticidad) */}
       <div>
         <p className="text-base font-semibold text-white flex items-center gap-1.5 mb-3"><AlertTriangle className="w-4 h-4 text-noa-orange" /> Panel de alertas</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {ALERTAS_DEMO.map((a) => <AlertCard key={a.producto} a={a} />)}
+          {sortBySeverity(ALERTAS).slice(0, 4).map((a) => <AlertCard key={a.producto} a={a} />)}
         </div>
       </div>
 
@@ -618,92 +619,6 @@ function EditFijosDialog({ fijos, onClose, onSave }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-// ── Panel de alertas (dataset demo: Casa Mediterránea, junio 2026) ──
-const ALERTAS_DEMO = [
-  { producto: 'Lomo vetado', tipo: 'Robo', sev: 82, estado: 'critico',
-    compra: { monto: 485000, cant: '12 kg' }, optimo: { monto: 323000, cant: '8 kg' }, fuga: { monto: 162000, cant: '4 kg' } },
-  { producto: 'Aceite de oliva virgen', tipo: 'Desviación', sev: 58, estado: 'atencion',
-    compra: { monto: 124000, cant: '18 lt' }, optimo: { monto: 96000, cant: '14 lt' }, fuga: { monto: 28000, cant: '4 lt' } },
-  { producto: 'Salmón fresco', tipo: 'Merma', sev: 41, estado: 'atencion',
-    compra: { monto: 378000, cant: '9 kg' }, optimo: { monto: 336000, cant: '8 kg' }, fuga: { monto: 42000, cant: '1 kg' } },
-  { producto: 'Tomate rama', tipo: 'Precio', sev: 35, estado: 'atencion',
-    compra: { monto: 89000, cant: '$4.450/kg' }, optimo: { monto: 66000, cant: '$3.300/kg' }, fuga: { monto: 23000, cant: '+$1.150/kg' } },
-];
-const PILL_STYLE = {
-  Robo: { bg: '#FCEBEB', border: '#F09595', color: '#A32D2D' },
-  Desviación: { bg: '#FAEEDA', border: '#FAC775', color: '#633806' },
-  Merma: { bg: '#E1F5EE', border: '#9FE1CB', color: '#085041' },
-  Precio: { bg: '#E6F1FB', border: '#85B7EB', color: '#0C447C' },
-};
-function AlertCard({ a }) {
-  const [open, setOpen] = useState(false);
-  const pill = PILL_STYLE[a.tipo] || PILL_STYLE.Precio;
-  const st = STATUS_STYLE[a.estado] || STATUS_STYLE.atencion;
-  const fugaPct = a.compra.monto > 0 ? (a.fuga.monto / a.compra.monto) * 100 : 0;
-  const optimoPct = a.compra.monto > 0 ? (a.optimo.monto / a.compra.monto) * 100 : 0;
-  const ACCIONES = {
-    Robo: 'Posible robo interno. Audita stock vs. compras y restringe accesos a bodega.',
-    Desviación: 'Consumo sobre lo óptimo. Revisa porciones y estandariza la receta.',
-    Merma: 'Merma elevada. Revisa manipulación, almacenamiento y vida útil.',
-    Precio: 'Alza de precio sobre el histórico. Renegocia o cotiza proveedor alternativo.',
-  };
-  const Row = ({ label, cant, children }) => (
-    <div className="flex items-center gap-2.5 mb-2.5">
-      <span className="text-[10px] text-gray-500 w-[52px] shrink-0 text-right">{label}</span>
-      <div className="flex-1 relative h-[22px] rounded-[5px] border border-gray-200 bg-[#f5f5f5] overflow-hidden">{children}</div>
-      <span className="text-[10px] font-medium bg-[#f5f5f5] border border-gray-200 rounded-[5px] px-2 py-0.5 shrink-0">{cant}</span>
-    </div>
-  );
-  return (
-    <Card><CardContent className="pt-4 pb-3">
-      <button className="w-full flex items-center justify-between mb-3 text-left" onClick={() => setOpen((o) => !o)}>
-        <span className="font-display font-bold text-[15px] text-gray-900 inline-flex items-center gap-1.5" style={{ letterSpacing: '-0.3px' }}>
-          <ChevronRight className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} />
-          {a.producto}
-        </span>
-        <span className="text-[11px] font-medium px-3 py-0.5 rounded-full border" style={{ background: pill.bg, borderColor: pill.border, color: pill.color }}>{a.tipo} · {a.sev}%</span>
-      </button>
-      <Row label="Compra" cant={a.compra.cant}>
-        <div className="absolute inset-0 flex items-center px-2 text-[10px] font-medium text-gray-900">{clp(a.compra.monto)}</div>
-      </Row>
-      <Row label="Óptimo" cant={a.optimo.cant}>
-        <div className="absolute left-0 top-0 h-full" style={{ width: `${optimoPct}%`, background: 'rgba(12,27,51,0.06)', borderRight: '2px solid #999' }} />
-        <div className="absolute inset-0 flex items-center px-2 text-[10px] font-medium text-gray-900">{clp(a.optimo.monto)}</div>
-      </Row>
-      <Row label="Fuga" cant={a.fuga.cant}>
-        <div className="absolute right-0 top-0 h-full flex items-center justify-center" style={{ width: `${Math.max(12, fugaPct)}%`, background: '#333' }}>
-          <span className="text-[10px] font-medium text-white">{clp(a.fuga.monto)}</span>
-        </div>
-      </Row>
-      <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-gray-200">
-        <span className="text-[11px] font-medium" style={{ color: st.color }}>{st.label}</span>
-        <button onClick={() => setOpen((o) => !o)} className="inline-flex items-center gap-1 text-[10px] text-gray-500 bg-[#f5f5f5] border border-gray-200 rounded-full px-3 py-1 hover:bg-gray-100">{open ? '↑ Ocultar' : '↓ Informe'}</button>
-      </div>
-      {open && (
-        <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-lg bg-gray-50 border border-gray-200 px-2 py-1.5">
-              <p className="text-[9px] text-gray-500 uppercase tracking-wide">Compra</p>
-              <p className="text-[12px] font-semibold text-gray-900">{clp(a.compra.monto)}</p>
-            </div>
-            <div className="rounded-lg bg-gray-50 border border-gray-200 px-2 py-1.5">
-              <p className="text-[9px] text-gray-500 uppercase tracking-wide">Óptimo</p>
-              <p className="text-[12px] font-semibold text-gray-900">{clp(a.optimo.monto)}</p>
-            </div>
-            <div className="rounded-lg px-2 py-1.5" style={{ background: '#333' }}>
-              <p className="text-[9px] text-white/70 uppercase tracking-wide">Fuga</p>
-              <p className="text-[12px] font-semibold text-white">{clp(a.fuga.monto)}</p>
-            </div>
-          </div>
-          <p className="text-[11px] leading-snug text-gray-600">
-            <span className="font-semibold text-gray-800">Acción:</span> {ACCIONES[a.tipo] || 'Revisa el detalle de compras de este insumo.'}
-          </p>
-        </div>
-      )}
-    </CardContent></Card>
   );
 }
 

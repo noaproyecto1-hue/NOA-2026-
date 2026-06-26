@@ -240,62 +240,7 @@ export default function Empleados() {
         <RRHHSummary restaurantId={selectedRestaurant !== 'all' ? selectedRestaurant : (accessibleRestaurants[0]?.id)} />
 
         {/* Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <Card className="bg-gradient-to-br from-emerald-500 to-green-600 border-0 shadow-xl overflow-hidden relative group hover:shadow-2xl transition-all duration-300 h-full">
-              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <CardContent className="p-5 relative">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-emerald-100 text-sm font-medium">Total Propinas</p>
-                    <p className="text-2xl font-bold text-white mt-1">
-                      {formatCurrency(tipsData.totalTips, selectedCurrency)}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                    <Coins className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-          
-          {/* % Propina sobre Venta - clickable */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Card 
-                    className="bg-gradient-to-br from-blue-500 to-indigo-600 border-0 shadow-xl overflow-hidden relative group hover:shadow-2xl transition-all duration-300 cursor-pointer h-full"
-                    onClick={() => setTipTrendOpen(true)}
-                  >
-                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <CardContent className="p-5 relative">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-1">
-                            <p className="text-blue-100 text-sm font-medium">% Propina / Venta</p>
-                            <Info className="w-3 h-3 text-blue-200" />
-                          </div>
-                          <p className="text-2xl font-bold text-white mt-1">
-                            {tipsData.tipPercentage.toFixed(1)}%
-                          </p>
-                        </div>
-                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                          <TrendingUp className="w-6 h-6 text-white" />
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-blue-200 mt-1">Toca para ver tendencia 📈</p>
-                    </CardContent>
-                  </Card>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs max-w-[200px]">Porcentaje que representan las propinas sobre el total de ventas netas. Toca para ver la tendencia diaria.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </motion.div>
-          
+        <div className="grid grid-cols-1 gap-4 mb-6">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
             <Card className="bg-gradient-to-br from-purple-500 to-violet-600 border-0 shadow-xl overflow-hidden relative group hover:shadow-2xl transition-all duration-300 h-full">
               <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -322,9 +267,6 @@ export default function Empleados() {
             <TabsTrigger value="directorio" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <ListFilter className="w-4 h-4" /> <span className="hidden sm:inline">Directorio</span>
             </TabsTrigger>
-            <TabsTrigger value="propinas" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
-              <Coins className="w-4 h-4" /> Propinas
-            </TabsTrigger>
             <TabsTrigger value="rendimiento" className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-noa-navy data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
               <BarChart3 className="w-4 h-4" /> <span className="hidden sm:inline">Rendimiento</span>
             </TabsTrigger>
@@ -346,111 +288,6 @@ export default function Empleados() {
               classificationMode={classificationMode}
               employeeAreas={employeeAreas}
             />
-          </TabsContent>
-
-          {/* Tab Propinas - Tabla unificada */}
-          <TabsContent value="propinas">
-            <Card className="bg-white border-0 shadow-sm rounded-2xl">
-              <CardHeader className="pb-2">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-lg font-bold">Propinas del Equipo</CardTitle>
-                    <p className="text-xs text-gray-400 mt-0.5">Propinas reales y distribución asignada</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <DateRangePicker 
-                      dateRange={tipDateRange}
-                      onChange={setTipDateRange}
-                      className="bg-gray-50 rounded-xl text-sm"
-                    />
-                    <Select value={distributionMethod} onValueChange={setDistributionMethod}>
-                      <SelectTrigger className="w-[200px] bg-gray-50 rounded-xl text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="equal">Distribución equitativa</SelectItem>
-                        <SelectItem value="by_transactions">Por transacciones</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4 p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-emerald-600 font-medium">Total a distribuir</p>
-                      <p className="text-2xl font-black text-emerald-800">
-                        {formatCurrency(tipsData.totalTips, selectedCurrency)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-emerald-600 font-medium">Método</p>
-                      <p className="font-semibold text-emerald-800 text-sm">
-                        {distributionMethod === "equal" ? "Equitativo" : "Por transacciones"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gray-50/80">
-                        <TableHead className="text-xs font-semibold uppercase text-gray-500">Empleado</TableHead>
-                        <TableHead className="text-right text-xs font-semibold uppercase text-gray-500">Transacciones</TableHead>
-                        <TableHead className="text-right text-xs font-semibold uppercase text-gray-500">Propinas Reales</TableHead>
-                        <TableHead className="text-right text-xs font-semibold uppercase text-gray-500">% Real</TableHead>
-                        <TableHead className="text-right text-xs font-semibold uppercase text-gray-500">Propina Asignada</TableHead>
-                        <TableHead className="text-right text-xs font-semibold uppercase text-gray-500">% Asignado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tipsData.unifiedTable.map((emp, idx) => (
-                        <TableRow key={idx} className="hover:bg-gray-50/50">
-                          <TableCell>
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-sm font-bold text-emerald-700">
-                                {emp.name?.charAt(0)?.toUpperCase() || '?'}
-                              </div>
-                              <span className="font-medium text-sm">{emp.name}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right text-sm">{emp.transactions}</TableCell>
-                          <TableCell className="text-right text-sm font-medium text-blue-600">
-                            {formatCurrency(emp.realTips, selectedCurrency)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant="secondary" className="bg-blue-50 text-blue-700 text-xs">
-                              {emp.percentOfRealTips.toFixed(1)}%
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="font-bold text-emerald-600">
-                              {formatCurrency(emp.assignedTip, selectedCurrency)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 text-xs">
-                              {emp.percentOfAssigned.toFixed(1)}%
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {tipsData.unifiedTable.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-gray-400 py-8 text-sm">
-                            {employees.length === 0 
-                              ? "No hay empleados configurados" 
-                              : "No hay propinas en este período"}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Tab Rendimiento — historial completo via backend */}
@@ -489,14 +326,6 @@ export default function Empleados() {
           setSelectedEmployee(null);
           window.location.reload();
         }}
-      />
-
-      <TipTrendModal
-        open={tipTrendOpen}
-        onOpenChange={setTipTrendOpen}
-        filteredSales={tipFilteredSales}
-        dateRange={tipDateRange}
-        currency={selectedCurrency}
       />
 
     </div>

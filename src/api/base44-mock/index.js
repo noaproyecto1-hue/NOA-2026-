@@ -374,7 +374,7 @@ async function buildLiveContext() {
       })),
     };
 
-    return `\n\n## CONTEXTO EN VIVO DEL RESTAURANTE (${today})\nDatos reales y actuales de TODA la plataforma: finanzas mensuales (ventas, food cost, OPEX, RRHH, arriendo, utilidad), recetas y subrecetas (con costo, precio y margen), carta/menú con precios, proveedores, vendedores, stock y alertas. Úsalos para responder con precisión cualquier pregunta del negocio. Si te preguntan por un plato, receta, precio o cifra, busca aquí primero.\n\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\``;
+    return `\n\n## CONTEXTO EN VIVO DEL RESTAURANTE (${today})\nDatos reales y actuales de TODA la plataforma: finanzas mensuales (ventas, food cost, OPEX, RRHH, arriendo, utilidad), recetas y subrecetas (con costo, precio y margen), carta/menú con precios, proveedores, vendedores, stock y alertas. Úsalos para responder con precisión cualquier pregunta del negocio. Si te preguntan por un plato, receta, precio o cifra, busca aquí primero.\n\nNotas para interpretar bien: (1) "finanzas_mensuales.food_pct" es el food cost REAL u operacional (todas las compras ÷ ventas) y suele ser mayor; "recetas[].margen_pct" es el margen TEÓRICO por plato (precio de carta − costo de receta). La diferencia entre ambos refleja mermas, sobreporciones o inventario. (2) El precio de venta de cada receta proviene de la carta real. (3) Las subrecetas no se venden: su costo es por lote/preparación.\n\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\``;
   } catch (err) {
     console.warn('[b44-mock] buildLiveContext error:', err);
     return '';

@@ -10,7 +10,7 @@
 import { store } from './store.js';
 
 const RID = 'rest_demo_1';
-const FLAG = 'noa_real_loaded_v5';
+const FLAG = 'noa_real_loaded_v6';
 const URL = '/noa-real-data.json';
 
 export async function loadDemoData({ force = false } = {}) {

@@ -208,7 +208,7 @@ async function buildLiveContext() {
     if (!rid) return '';
 
     const restaurant = await store.get('Restaurant', rid);
-    const [supplies, recipes, sales, suppliers, alerts, supplyCosts, opex] = await Promise.all([
+    const [supplies, recipes, sales, suppliers, alerts, supplyCosts, opex, employeeMetrics] = await Promise.all([
       store.filter('SupplyItem', { restaurant_id: rid }),
       store.filter('Recipe', { restaurant_id: rid }),
       store.filter('Sale', { restaurant_id: rid }),
@@ -216,6 +216,7 @@ async function buildLiveContext() {
       store.filter('Alert', { restaurant_id: rid, is_resolved: false }),
       store.filter('SupplyCost', { restaurant_id: rid }),
       store.filter('OpEx', { restaurant_id: rid }),
+      store.filter('EmployeeMetrics', { restaurant_id: rid }),
     ]);
 
     const today = new Date().toISOString().slice(0, 10);
@@ -250,6 +251,82 @@ async function buildLiveContext() {
       }
     }
 
+    // === Finanzas mensuales (P&L resumido por mes) ===
+    const netByMonth = {}, foodByMonth = {}, opexByMonth = {}, laborByMonth = {}, rentByMonth = {};
+    for (const s of sales) {
+      if (s.is_cancelled) continue;
+      const k = (s.date_time || s.date || '').slice(0, 7);
+      if (k) netByMonth[k] = (netByMonth[k] || 0) + (s.total_amount || 0) / 1.19; // neto sin IVA
+    }
+    for (const c of supplyCosts) {
+      const k = (c.date || '').slice(0, 7);
+      if (k) foodByMonth[k] = (foodByMonth[k] || 0) + (c.total_cost || 0);
+    }
+    for (const o of opex) {
+      const k = (o.date || '').slice(0, 7);
+      if (!k) continue;
+      if (o.type === 'payroll') laborByMonth[k] = (laborByMonth[k] || 0) + (o.amount || 0);
+      else if (o.type === 'rent') rentByMonth[k] = (rentByMonth[k] || 0) + (o.amount || 0);
+      else opexByMonth[k] = (opexByMonth[k] || 0) + (o.amount || 0);
+    }
+    const mesesOrden = Object.keys(netByMonth).sort();
+    const finanzas_mensuales = mesesOrden.slice(-6).map((m) => {
+      const v = netByMonth[m] || 0, f = foodByMonth[m] || 0, op = opexByMonth[m] || 0, la = laborByMonth[m] || 0, re = rentByMonth[m] || 0;
+      const u = v - f - op - la - re;
+      return {
+        mes: m,
+        venta_neta: Math.round(v),
+        food_cost: Math.round(f),
+        food_pct: v ? Math.round((f / v) * 1000) / 10 : 0,
+        opex: Math.round(op),
+        rrhh: Math.round(la),
+        arriendo: Math.round(re),
+        utilidad: Math.round(u),
+        margen_pct: v ? Math.round((u / v) * 1000) / 10 : 0,
+      };
+    });
+
+    // === Recetas y subrecetas (costo, precio, margen) ===
+    const principales = recipes.filter((r) => !r.is_sub_recipe);
+    const subs = recipes.filter((r) => r.is_sub_recipe);
+    const recetasMap = (arr) => arr.map((r) => {
+      const costo = r.cost || 0, pvp = r.sale_price || 0;
+      return {
+        nombre: r.dish_name || r.name,
+        categoria: r.category || null,
+        costo: Math.round(costo),
+        precio_venta: Math.round(pvp),
+        margen_pct: pvp ? Math.round(((pvp - costo) / pvp) * 1000) / 10 : null,
+        ingredientes: (r.ingredients || []).map((i) => i.supply_name || i.name).filter(Boolean),
+      };
+    });
+
+    // === Carta (menú real con precios) desde localStorage ===
+    let cartaResumen = null;
+    try {
+      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('noa_carta_v2') : null;
+      if (raw) {
+        const carta = JSON.parse(raw);
+        const prods = carta.products || [];
+        cartaResumen = (carta.families || []).filter((f) => f.isVisible !== false).map((f) => ({
+          familia: f.label,
+          productos: prods
+            .filter((p) => p.familyId === f.id && p.isActive !== false)
+            .map((p) => {
+              const valores = Object.values(p.prices || {}).map(Number).filter((v) => v > 0);
+              return { nombre: p.name, precio: valores.length ? Math.min(...valores) : null };
+            }),
+        }));
+      }
+    } catch {}
+
+    // === Vendedores / cajeros (desempeño) ===
+    const vendedores = (employeeMetrics || [])
+      .map((e) => ({ nombre: e.employee_name || e.name, ventas: e.total_sales || e.sales_total || 0, tickets: e.tickets || e.transactions || 0 }))
+      .filter((e) => e.nombre)
+      .sort((a, b) => (b.ventas || 0) - (a.ventas || 0))
+      .slice(0, 12);
+
     const context = {
       restaurante: restaurant ? {
         nombre: restaurant.name,
@@ -264,11 +341,18 @@ async function buildLiveContext() {
       },
       conteos: {
         insumos: supplies.length,
-        recetas: recipes.length,
+        recetas: principales.length,
+        subrecetas: subs.length,
         proveedores: suppliers.length,
         alertas_activas: alerts.length,
         items_bajo_minimo: lowStock.length,
       },
+      finanzas_mensuales,
+      recetas: recetasMap(principales),
+      subrecetas: recetasMap(subs),
+      carta_menu: cartaResumen,
+      vendedores,
+      proveedores: suppliers.slice(0, 30).map((p) => ({ nombre: p.name, categoria: p.category || p.rubro || null })),
       stock_bajo: lowStock.slice(0, 15).map((s) => ({
         nombre: s.name,
         stock: s.stock,
@@ -290,7 +374,7 @@ async function buildLiveContext() {
       })),
     };
 
-    return `\n\n## CONTEXTO EN VIVO DEL RESTAURANTE (${today})\nDatos actuales del sistema. Úsalos para responder con precisión.\n\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\``;
+    return `\n\n## CONTEXTO EN VIVO DEL RESTAURANTE (${today})\nDatos reales y actuales de TODA la plataforma: finanzas mensuales (ventas, food cost, OPEX, RRHH, arriendo, utilidad), recetas y subrecetas (con costo, precio y margen), carta/menú con precios, proveedores, vendedores, stock y alertas. Úsalos para responder con precisión cualquier pregunta del negocio. Si te preguntan por un plato, receta, precio o cifra, busca aquí primero.\n\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\``;
   } catch (err) {
     console.warn('[b44-mock] buildLiveContext error:', err);
     return '';

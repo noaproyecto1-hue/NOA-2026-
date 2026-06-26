@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Save, Search, X, ChevronUp, ChevronDown, MoreVertical, Coffee, CupSoda,
-  Sandwich, Beef, Soup, Salad, IceCream, Croissant, Wine, Citrus, Star,
+  Sandwich, Beef, Soup, Salad, IceCream, Croissant, Wine, Citrus,
+  Leaf, Cookie, Sprout, Martini, Beer, Droplet, Egg, Pizza, Fish, Cake, Baby,
 } from 'lucide-react';
 
 // ════════════════════════════════════════════════════════════════════════
@@ -17,6 +18,7 @@ const ACCENT = '#c17f2a';
 
 const ICONS = {
   Coffee, CupSoda, Sandwich, Beef, Soup, Salad, IceCream, Croissant, Wine, Citrus,
+  Leaf, Cookie, Sprout, Martini, Beer, Droplet, Egg, Pizza, Fish, Cake, Baby,
 };
 
 // ── Semilla (GET /api/menu) ──

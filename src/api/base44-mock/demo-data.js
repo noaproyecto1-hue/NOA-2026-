@@ -10,7 +10,7 @@
 import { store } from './store.js';
 
 const RID = 'rest_demo_1';
-const FLAG = 'noa_real_loaded_v4';
+const FLAG = 'noa_real_loaded_v5';
 const URL = '/noa-real-data.json';
 
 export async function loadDemoData({ force = false } = {}) {
@@ -39,8 +39,7 @@ export async function loadDemoData({ force = false } = {}) {
   store.bulkCreate('SupplyItem', data.supplyItems || [], { replace: true });
   store.bulkCreate('Supplier', data.suppliers || [], { replace: true });
   store.bulkCreate('EmployeeMetrics', data.employeeMetrics || [], { replace: true });
-  // Entidades sin datos reales en los Excel → vacías
-  store.bulkCreate('Recipe', [], { replace: true });
+  store.bulkCreate('Recipe', data.recipes || [], { replace: true });
   store.bulkCreate('Customer', [], { replace: true });
   store.bulkCreate('Alert', [], { replace: true });
 
@@ -60,6 +59,8 @@ export async function loadDemoData({ force = false } = {}) {
 
   // Familias reales (rubros) para el gestor de Compras
   try { localStorage.setItem('noa_familias_extra', JSON.stringify(data.familias || [])); } catch {}
+  // Carta real de Kingdom Coffee → la usa el Menu Manager (módulo Carta)
+  try { if (data.carta) localStorage.setItem('noa_carta_v2', JSON.stringify(data.carta)); } catch {}
 
   localStorage.setItem(FLAG, new Date().toISOString());
   console.info(`[real-data] cargado: ${(data.sales || []).length} ventas · ${(data.supplyCosts || []).length} compras · ${(data.opex || []).length} opex · ${(data.suppliers || []).length} proveedores`);

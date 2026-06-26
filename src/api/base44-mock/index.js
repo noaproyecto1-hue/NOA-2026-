@@ -335,6 +335,30 @@ async function buildLiveContext() {
       };
     });
 
+    // === Proyección del mes (igual que el dashboard): promedio de los últimos
+    // hasta-3 meses ANTERIORES al mes mostrado. Es una aproximación, NO el
+    // acumulado del mes en curso. Úsala cuando pregunten por "lo proyectado".
+    const compraNetByMonth = {}, opexTotByMonth = {};
+    for (const c of supplyCosts) { const k = (c.date || '').slice(0, 7); if (k) compraNetByMonth[k] = (compraNetByMonth[k] || 0) + (Number(c.subtotal) || (Number(c.total_cost) || 0) / 1.19); }
+    for (const o of opex) { const k = (o.date || '').slice(0, 7); if (k) opexTotByMonth[k] = (opexTotByMonth[k] || 0) + (Number(o.amount) || 0); }
+    let proyeccion = null;
+    if (mesesOrden.length >= 1) {
+      const refM = mesesOrden[mesesOrden.length - 1];
+      const priorsM = mesesOrden.filter((m) => m < refM);
+      const baseM = priorsM.length ? priorsM.slice(-3) : [refM];
+      const avgM = (obj) => Math.round(baseM.reduce((a, m) => a + (obj[m] || 0), 0) / baseM.length);
+      const pv = avgM(netByMonth), pc = avgM(compraNetByMonth), po = avgM(opexTotByMonth);
+      proyeccion = {
+        metodo: 'promedio de los meses anteriores (aproximación, no es el acumulado del mes)',
+        meses_base: baseM,
+        venta_neta_proyectada: pv,
+        compra_proyectada: pc,
+        opex_proyectado: po,
+        utilidad_proyectada: pv - pc - po,
+        margen_proyectado_pct: pv ? Math.round(((pv - pc - po) / pv) * 1000) / 10 : 0,
+      };
+    }
+
     // === Recetas y subrecetas (costo, precio, margen) ===
     const principales = recipes.filter((r) => !r.is_sub_recipe);
     const subs = recipes.filter((r) => r.is_sub_recipe);
@@ -403,6 +427,7 @@ async function buildLiveContext() {
         items_bajo_minimo: lowStock.length,
       },
       finanzas_mensuales,
+      proyeccion_mes: proyeccion,
       recetas: recetasMap(principales),
       subrecetas: recetasMap(subs),
       carta_menu: cartaResumen,
@@ -429,7 +454,7 @@ async function buildLiveContext() {
       })),
     };
 
-    return `\n\n## CONTEXTO EN VIVO DEL RESTAURANTE (${today})\nDatos reales y actuales de TODA la plataforma: finanzas mensuales (ventas, food cost, OPEX, RRHH, arriendo, utilidad), recetas y subrecetas (con costo, precio y margen), carta/menú con precios, proveedores, vendedores, stock y alertas. Úsalos para responder con precisión cualquier pregunta del negocio. Si te preguntan por un plato, receta, precio o cifra, busca aquí primero.\n\nNotas para interpretar bien: (1) "venta_hoy" es la venta del día (bruta = con IVA, neta = bruta/1.19). Si viene de "Fudo en vivo" es la venta real de hoy; si no, es el último día con ventas registrado. NUNCA digas que la venta es $0 sin antes mirar "venta_hoy" y "mes_en_curso". (2) "mes_en_curso" es el acumulado del mes con datos más recientes (la plataforma trata el último mes/día con ventas como el período actual); "serie_diaria_mes" trae el detalle día a día de ese mes para responder acumulados o días puntuales. (3) "finanzas_mensuales.food_pct" es el food cost REAL u operacional (todas las compras ÷ ventas) y suele ser mayor; "recetas[].margen_pct" es el margen TEÓRICO por plato (precio de carta − costo de receta). La diferencia refleja mermas/sobreporciones. (4) El precio de venta de cada receta proviene de la carta real. (5) Las subrecetas no se venden: su costo es por lote/preparación.\n\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\``;
+    return `\n\n## CONTEXTO EN VIVO DEL RESTAURANTE (${today})\nDatos reales y actuales de TODA la plataforma: finanzas mensuales (ventas, food cost, OPEX, RRHH, arriendo, utilidad), recetas y subrecetas (con costo, precio y margen), carta/menú con precios, proveedores, vendedores, stock y alertas. Úsalos para responder con precisión cualquier pregunta del negocio. Si te preguntan por un plato, receta, precio o cifra, busca aquí primero.\n\nNotas para interpretar bien: (1) "venta_hoy" es la venta del día (bruta = con IVA, neta = bruta/1.19). Si viene de "Fudo en vivo" es la venta real de hoy; si no, es el último día con ventas registrado. NUNCA digas que la venta es $0 sin antes mirar "venta_hoy" y "mes_en_curso". (2) "mes_en_curso" es el ACUMULADO del mes con datos más recientes; "proyeccion_mes" es el valor PROYECTADO (aproximación basada en el promedio de los meses anteriores, NO el acumulado) — si te preguntan "¿cuál es el valor proyectado?" responde con "proyeccion_mes" (venta_neta_proyectada, utilidad_proyectada, etc.), no con un escenario inventado. "serie_diaria_mes" trae el detalle día a día. (3) "finanzas_mensuales.food_pct" es el food cost REAL u operacional (todas las compras ÷ ventas) y suele ser mayor; "recetas[].margen_pct" es el margen TEÓRICO por plato (precio de carta − costo de receta). La diferencia refleja mermas/sobreporciones. (4) El precio de venta de cada receta proviene de la carta real. (5) Las subrecetas no se venden: su costo es por lote/preparación.\n\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\``;
   } catch (err) {
     console.warn('[b44-mock] buildLiveContext error:', err);
     return '';

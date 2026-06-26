@@ -635,7 +635,7 @@ export default function IntegrationsSettings() {
             <PasswordInput
               id="ai-key"
               value={cfg.ai.apiKey}
-              onChange={(v) => patch('ai', { apiKey: v })}
+              onChange={(v) => patch('ai', { apiKey: v.trim() })}
               placeholder={cfg.ai.provider === 'anthropic' ? 'sk-ant-...' : cfg.ai.provider === 'openai' ? 'sk-...' : 'API key'}
             />
             <p className="text-xs text-gray-500">

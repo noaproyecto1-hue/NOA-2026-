@@ -22,7 +22,9 @@ export async function invokeLLM({ provider, apiKey, model, messages, system, max
   // (p. ej. DEEPSEEK_API_KEY, ANTHROPIC_API_KEY) configurada en Vercel — nunca en el repo.
   const envKey = (typeof process !== 'undefined' && process.env)
     ? process.env[`${String(provider).toUpperCase()}_API_KEY`] : '';
-  const key = apiKey || envKey;
+  // .trim(): evita el fallo "Authentication Fails" cuando la key se pega con un
+  // espacio o salto de línea invisible (DeepSeek/OpenAI rechazan con 401/400).
+  const key = String(apiKey || envKey || '').trim();
   if (!key) throw new Error('apiKey requerido (configúralo en Settings → Integraciones o como variable de entorno)');
   const _model = model || DEFAULT_MODELS[provider];
   const _max = max_tokens || DEFAULT_MAX_TOKENS;

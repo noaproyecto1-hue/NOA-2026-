@@ -220,9 +220,55 @@ async function buildLiveContext() {
     ]);
 
     const today = new Date().toISOString().slice(0, 10);
-    const todaySales = sales.filter((s) => (s.date_time || '').slice(0, 10) === today && !s.is_cancelled);
-    const todayRevenue = todaySales.reduce((sum, s) => sum + (s.total_amount || 0), 0);
     const lowStock = supplies.filter((s) => (s.stock || 0) < (s.min_stock || 0));
+
+    // === "Hoy" y "mes en curso" ALINEADOS AL DASHBOARD ===
+    // El total_amount de cada venta es BRUTO (con IVA); neto = bruto / 1.19.
+    // El dataset llega hasta mayo: la plataforma trata el último día/mes CON
+    // ventas como el período "actual" (igual que el dashboard usa refToday).
+    const netByDay = {}, grossByDay = {}, cntByDay = {};
+    for (const s of sales) {
+      if (s.is_cancelled) continue;
+      const d = (s.date_time || s.date || '').slice(0, 10);
+      if (!d) continue;
+      grossByDay[d] = (grossByDay[d] || 0) + (Number(s.total_amount) || 0);
+      netByDay[d] = (netByDay[d] || 0) + (Number(s.total_amount) || 0) / 1.19;
+      cntByDay[d] = (cntByDay[d] || 0) + 1;
+    }
+    const diasConVenta = Object.keys(netByDay).filter((d) => netByDay[d] > 0).sort();
+    const refToday = diasConVenta.length ? diasConVenta[diasConVenta.length - 1] : today;
+    const refMonth = refToday.slice(0, 7);
+    const diasMes = diasConVenta.filter((d) => d.slice(0, 7) === refMonth);
+    const ventaNetaAcum = diasMes.reduce((a, d) => a + netByDay[d], 0);
+    const ventaBrutaAcum = diasMes.reduce((a, d) => a + grossByDay[d], 0);
+    const promedioDiario = diasMes.length ? ventaNetaAcum / diasMes.length : 0;
+
+    // Venta de HOY en vivo desde Fudo (mismo origen/cache que el dashboard).
+    let fudoHoy = null;
+    try {
+      const fr = await fetch('/__fudo/sync-pull');
+      if (fr.ok) {
+        const fj = await fr.json();
+        const fv = (fj.sales || []).filter((s) => !s.is_cancelled && (s.date_time || '').slice(0, 10) === today);
+        if (fv.length) {
+          const bruto = fv.reduce((a, s) => a + (Number(s.total_amount) || 0), 0);
+          fudoHoy = { fecha: today, fuente: 'Fudo en vivo', venta_bruta: Math.round(bruto), venta_neta: Math.round(bruto / 1.19), ventas: fv.length };
+        }
+      }
+    } catch {}
+    const ventaHoy = fudoHoy || {
+      fecha: refToday,
+      fuente: 'último día con ventas registrado (no hay datos del día actual del sistema)',
+      venta_bruta: Math.round(grossByDay[refToday] || 0),
+      venta_neta: Math.round(netByDay[refToday] || 0),
+      ventas: cntByDay[refToday] || 0,
+    };
+
+    // Meta de venta configurada (Settings → Dashboard).
+    let metaMensual = null;
+    try { metaMensual = JSON.parse(localStorage.getItem('noa_dash_cfg') || '{}').metaMensual || null; } catch {}
+
+    const serieDiaria = diasMes.map((d) => ({ fecha: d, venta_bruta: Math.round(grossByDay[d]), venta_neta: Math.round(netByDay[d]), ventas: cntByDay[d] }));
 
     // Detecta posibles desviaciones de precio (mismo supply, precios distintos)
     const pricesBySupply = {};
@@ -334,11 +380,17 @@ async function buildLiveContext() {
         timezone: restaurant.timezone,
       } : null,
       usuario_actual: user ? { nombre: user.full_name, rol: user.app_role } : null,
-      hoy: {
-        fecha: today,
-        ventas_count: todaySales.length,
-        ingreso_total: todayRevenue,
+      venta_hoy: ventaHoy,
+      mes_en_curso: {
+        mes: refMonth,
+        dia_referencia: refToday,
+        dias_con_venta: diasMes.length,
+        venta_bruta_acumulada: Math.round(ventaBrutaAcum),
+        venta_neta_acumulada: Math.round(ventaNetaAcum),
+        promedio_diario_neto: Math.round(promedioDiario),
+        meta_mensual: metaMensual,
       },
+      serie_diaria_mes: serieDiaria,
       conteos: {
         insumos: supplies.length,
         recetas: principales.length,
@@ -374,7 +426,7 @@ async function buildLiveContext() {
       })),
     };
 
-    return `\n\n## CONTEXTO EN VIVO DEL RESTAURANTE (${today})\nDatos reales y actuales de TODA la plataforma: finanzas mensuales (ventas, food cost, OPEX, RRHH, arriendo, utilidad), recetas y subrecetas (con costo, precio y margen), carta/menú con precios, proveedores, vendedores, stock y alertas. Úsalos para responder con precisión cualquier pregunta del negocio. Si te preguntan por un plato, receta, precio o cifra, busca aquí primero.\n\nNotas para interpretar bien: (1) "finanzas_mensuales.food_pct" es el food cost REAL u operacional (todas las compras ÷ ventas) y suele ser mayor; "recetas[].margen_pct" es el margen TEÓRICO por plato (precio de carta − costo de receta). La diferencia entre ambos refleja mermas, sobreporciones o inventario. (2) El precio de venta de cada receta proviene de la carta real. (3) Las subrecetas no se venden: su costo es por lote/preparación.\n\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\``;
+    return `\n\n## CONTEXTO EN VIVO DEL RESTAURANTE (${today})\nDatos reales y actuales de TODA la plataforma: finanzas mensuales (ventas, food cost, OPEX, RRHH, arriendo, utilidad), recetas y subrecetas (con costo, precio y margen), carta/menú con precios, proveedores, vendedores, stock y alertas. Úsalos para responder con precisión cualquier pregunta del negocio. Si te preguntan por un plato, receta, precio o cifra, busca aquí primero.\n\nNotas para interpretar bien: (1) "venta_hoy" es la venta del día (bruta = con IVA, neta = bruta/1.19). Si viene de "Fudo en vivo" es la venta real de hoy; si no, es el último día con ventas registrado. NUNCA digas que la venta es $0 sin antes mirar "venta_hoy" y "mes_en_curso". (2) "mes_en_curso" es el acumulado del mes con datos más recientes (la plataforma trata el último mes/día con ventas como el período actual); "serie_diaria_mes" trae el detalle día a día de ese mes para responder acumulados o días puntuales. (3) "finanzas_mensuales.food_pct" es el food cost REAL u operacional (todas las compras ÷ ventas) y suele ser mayor; "recetas[].margen_pct" es el margen TEÓRICO por plato (precio de carta − costo de receta). La diferencia refleja mermas/sobreporciones. (4) El precio de venta de cada receta proviene de la carta real. (5) Las subrecetas no se venden: su costo es por lote/preparación.\n\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\``;
   } catch (err) {
     console.warn('[b44-mock] buildLiveContext error:', err);
     return '';

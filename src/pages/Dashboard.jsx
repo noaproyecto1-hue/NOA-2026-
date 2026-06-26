@@ -24,6 +24,7 @@ import CostCenterBreakdown from '@/components/dashboard/CostCenterBreakdown';
 import IncomeStatementTab from '@/components/dashboard/IncomeStatementTab';
 import CostTrendChart from '@/components/dashboard/CostTrendChart';
 import AlertsFullView from '@/components/dashboard/AlertsFullView';
+import CashFlowProjected from '@/components/dashboard/CashFlowProjected';
 import RestaurantPickerOnEntry from '@/components/dialogs/RestaurantPickerOnEntry';
 
 
@@ -463,7 +464,7 @@ export default function Dashboard() {
               { id: 'overview', label: 'Dashboard Principal', icon: LayoutDashboard, color: 'indigo' },
               { id: 'costs', label: 'Gastos Generales', icon: ShoppingBag, color: 'orange' },
               { id: 'incomeStatement', label: 'Estado de Resultados', icon: BarChart3, color: 'violet' },
-              { id: 'cashflow', label: 'Flujo de Caja', icon: Wallet, color: 'emerald', badge: 'Próximamente' },
+              { id: 'cashflow', label: 'Flujo de Caja', icon: Wallet, color: 'emerald' },
               { id: 'alerts', label: 'Alertas', icon: ShieldAlert, color: 'red', count: alerts.filter(a => !a.is_read).length, highlight: true },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -578,7 +579,7 @@ export default function Dashboard() {
             </motion.div>
           )}
 
-          {/* VISTA: FLUJO DE CAJA (Próximamente) */}
+          {/* VISTA: FLUJO DE CAJA */}
           {visualMode === 'cashflow' && (
             <motion.div
               key="cashflow"
@@ -587,18 +588,7 @@ export default function Dashboard() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              {/* Coming Soon Card */}
-              <Card className="bg-white border-0 shadow-xl">
-                <CardContent className="py-16 text-center">
-                  <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-50 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
-                    <Clock className="w-10 h-10 text-emerald-500" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Próximamente</h3>
-                  <p className="text-gray-500 max-w-sm mx-auto text-sm">
-                    Pronto podrás ver proyecciones de flujo de caja, análisis de liquidez y recomendaciones financieras.
-                  </p>
-                </CardContent>
-              </Card>
+              <CashFlowProjected />
             </motion.div>
           )}
 

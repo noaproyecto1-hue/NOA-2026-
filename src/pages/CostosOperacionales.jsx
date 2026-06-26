@@ -64,13 +64,22 @@ export default function CostosOperacionales() {
   const [periodo, setPeriodo] = useState('mes'); // 'mes' | '6m' | 'anio'
 
   const now = new Date();
+  // Mes de referencia = último mes CON datos. Los registros llegan hasta mayo;
+  // el mes calendario real (p. ej. junio) puede no tener datos y dejaría la
+  // vista "Mes actual" vacía. Por eso anclamos al último dato disponible.
+  const refNow = useMemo(() => {
+    const ts = [];
+    for (const o of opex) { const t = new Date(o.date).getTime(); if (!Number.isNaN(t)) ts.push(t); }
+    for (const s of sales) { const t = new Date(s.date_time).getTime(); if (!Number.isNaN(t)) ts.push(t); }
+    return ts.length ? new Date(Math.max(...ts)) : now;
+  }, [opex, sales]); // eslint-disable-line react-hooks/exhaustive-deps
   // Rango según período seleccionado
   const desde = useMemo(() => {
-    const d = new Date(now);
-    if (periodo === 'mes') return new Date(now.getFullYear(), now.getMonth(), 1);
+    const d = new Date(refNow);
+    if (periodo === 'mes') return new Date(refNow.getFullYear(), refNow.getMonth(), 1);
     if (periodo === '6m') { d.setMonth(d.getMonth() - 5); return new Date(d.getFullYear(), d.getMonth(), 1); }
     d.setMonth(d.getMonth() - 11); return new Date(d.getFullYear(), d.getMonth(), 1);
-  }, [periodo, now]);
+  }, [periodo, refNow]);
 
   const opexFiltrado = useMemo(() => opex.filter((o) => new Date(o.date) >= desde), [opex, desde]);
   const ventaPeriodo = useMemo(() => sales.filter((s) => new Date(s.date_time) >= desde).reduce((a, s) => a + (Number(s.total_amount) || 0), 0), [sales, desde]);

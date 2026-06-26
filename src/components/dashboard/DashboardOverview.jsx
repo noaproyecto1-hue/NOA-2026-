@@ -211,8 +211,9 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
     const netoCompra = (c) => Number(c.subtotal) || (Number(c.total_cost) || 0) / 1.19;
     const compraAcum = supplyCosts.reduce((a, c) => a + netoCompra(c), 0);
     const compraHoy = supplyCosts.filter((c) => (c.date || '').slice(0, 10) === refToday).reduce((a, c) => a + netoCompra(c), 0);
-    const diasConCompra = new Set(supplyCosts.map((c) => (c.date || '').slice(0, 10)).filter(Boolean)).size || 1;
-    const compraProj = (compraAcum / diasConCompra) * selDays;
+    // Proyección por DÍAS OPERATIVOS (igual que venta y OPEX), no por días-calendario.
+    // En un mes cerrado (operElapsed === operDays) → proyectado = acumulado, sin inflar.
+    const compraProj = operElapsed > 0 ? (compraAcum / operElapsed) * operDays : compraAcum;
 
     // OPEX: el gasto FIJO mensual (RRHH, arriendo, config) se divide por los días
     // OPERATIVOS del mes (sin domingos) → cuota diaria. Se suma día a día (Hoy),

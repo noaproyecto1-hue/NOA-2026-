@@ -244,9 +244,12 @@ async function buildLiveContext() {
     const promedioDiario = diasMes.length ? ventaNetaAcum / diasMes.length : 0;
 
     // Venta de HOY en vivo desde Fudo (mismo origen/cache que el dashboard).
+    // Con timeout corto: si Fudo se cuelga, no debe bloquear la respuesta del agente.
     let fudoHoy = null;
     try {
-      const fr = await fetch('/__fudo/sync-pull');
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 2500);
+      const fr = await fetch('/__fudo/sync-pull', { signal: ctrl.signal }).finally(() => clearTimeout(to));
       if (fr.ok) {
         const fj = await fr.json();
         const fv = (fj.sales || []).filter((s) => !s.is_cancelled && (s.date_time || '').slice(0, 10) === today);

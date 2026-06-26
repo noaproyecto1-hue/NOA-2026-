@@ -263,7 +263,25 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
     };
   }, [sales, supplyCosts, opex, fijos, today, META_MENSUAL, cfg.utilPct, tz]);
 
-  // Objeto unificado de KPIs (demo o real)
+  // Proyección = aproximación basada en los MESES ANTERIORES (no el mes en curso).
+  // Promedio de los últimos hasta-3 meses previos al mes mostrado, por métrica.
+  const projFC = useMemo(() => {
+    const venta = {}, compra = {}, opx = {};
+    for (const s of hist.sales || []) { if (s.is_cancelled) continue; const k = (s.date_time || '').slice(0, 7); if (k) venta[k] = (venta[k] || 0) + (Number(s.total_amount) || 0) / 1.19; }
+    for (const c of hist.costs || []) { const k = (c.date || '').slice(0, 7); if (k) compra[k] = (compra[k] || 0) + (Number(c.subtotal) || (Number(c.total_cost) || 0) / 1.19); }
+    for (const o of hist.opex || []) { const k = (o.date || '').slice(0, 7); if (k) opx[k] = (opx[k] || 0) + (Number(o.amount) || 0); }
+    const meses = Object.keys(venta).sort();
+    if (meses.length < 1) return null;
+    const refMonth = meses[meses.length - 1];            // mes mostrado (más reciente con venta)
+    const priors = meses.filter((m) => m < refMonth);    // meses anteriores
+    const base = priors.length ? priors.slice(-3) : [refMonth]; // últimos 3 previos (o el actual si no hay)
+    const avg = (obj) => base.reduce((a, m) => a + (obj[m] || 0), 0) / base.length;
+    const fijosCfg = totalFijos(fijos);
+    return { venta: Math.round(avg(venta)), compra: Math.round(avg(compra)), opex: Math.round(avg(opx) + fijosCfg), meses: base, soloUnMes: priors.length === 0 };
+  }, [hist, fijos]);
+
+  // Objeto unificado de KPIs (demo o real); en real, sobrescribe los Proyectados
+  // con la aproximación histórica (proyectado ≠ acumulado).
   const K = DEMO_MODE ? {
     diasAcum: DEMO_CASA.diasAcum,
     ventaHoy: DEMO_CASA.ventaHoy, ventaAcum: DEMO_CASA.ventaAcum, ventaProj: DEMO_CASA.ventaProj, ventaDiaProm: DEMO_CASA.ventaDiaProm,
@@ -272,7 +290,7 @@ export default function DashboardOverview({ sales = [], supplyCosts = [], opex =
     opexHoy: DEMO_CASA.opexHoy, opexAcum: DEMO_CASA.opexAcum, opexProj: DEMO_CASA.opexProj, opexPct: DEMO_CASA.opexPct,
     utilHoy: DEMO_CASA.utilHoy, utilAcum: DEMO_CASA.utilAcum, utilProj: DEMO_CASA.utilProj,
     margenHoy: DEMO_CASA.margenHoy, margenNeto: DEMO_CASA.margenNeto, margenProj: DEMO_CASA.margenProj,
-  } : M;
+  } : applyForecast(M, projFC);
 
   // Meta de venta diaria (calculada desde costos + utilidad esperada) y color/% de la venta de hoy.
   const META_DIARIA = DEMO_MODE ? DEMO_CASA.metaDiaria : (K.metaDiaria || META_MENSUAL / Math.max(1, daysInMonth));
@@ -621,6 +639,20 @@ function EditFijosDialog({ fijos, onClose, onSave }) {
       </DialogContent>
     </Dialog>
   );
+}
+
+// Sobrescribe los Proyectados de M con la aproximación histórica (meses anteriores).
+function applyForecast(M, fc) {
+  if (!fc) return M;
+  const utilProj = fc.venta - fc.compra - fc.opex;
+  return {
+    ...M,
+    ventaProj: fc.venta,
+    compraProj: fc.compra,
+    opexProj: fc.opex,
+    utilProj,
+    margenProj: fc.venta > 0 ? (utilProj / fc.venta) * 100 : 0,
+  };
 }
 
 function statusVenta(real, necesario) { if (real >= necesario) return 'favorable'; if (real >= necesario * 0.9) return 'atencion'; return 'critico'; }

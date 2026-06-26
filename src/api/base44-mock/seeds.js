@@ -7,7 +7,7 @@ import { store } from './store.js';
 export const DEMO_USER = {
   id: 'user_cesar_admin',
   username: 'cesar',
-  email: 'cesar@local',
+  email: 'felipe@local',
   password: '1234',
   full_name: 'Felipe (Administrador)',
   display_name: 'Felipe',
@@ -75,6 +75,7 @@ export async function seedIfEmpty() {
       const patch = {};
       if (!cesar.password) { patch.password = DEMO_USER.password; patch.username = DEMO_USER.username; }
       if (cesar.display_name !== DEMO_USER.display_name) { patch.display_name = DEMO_USER.display_name; patch.full_name = DEMO_USER.full_name; }
+      if (cesar.email !== DEMO_USER.email) { patch.email = DEMO_USER.email; }
       if (Object.keys(patch).length) await store.update('User', cesar.id, patch);
     }
   }
